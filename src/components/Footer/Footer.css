@@ -1,0 +1,99 @@
+/* ========================================
+  Footer — Vulnexus
+   ======================================== */
+
+.footer {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  left: var(--sidebar-width);
+  height: var(--footer-height);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-lg);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  z-index: 90;
+  animation: slideUpFooter 0.4s ease 0.2s both;
+  transition: left var(--transition-base), background-color var(--transition-base);
+}
+
+.sidebar-collapsed ~ .app-main .footer,
+.sidebar-collapsed + .app-main .footer {
+  left: var(--sidebar-collapsed);
+}
+
+.footer-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.footer-logo {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.footer-center {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.footer-link {
+  color: var(--text-tertiary);
+  transition: color var(--transition-fast);
+}
+
+.footer-link:hover {
+  color: var(--brand-primary);
+}
+
+.footer-dot {
+  color: var(--border-primary);
+}
+
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.footer-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.status-dot.online {
+  background: var(--severity-low);
+  box-shadow: 0 0 6px var(--severity-low);
+}
+
+.footer-version {
+  font-family: var(--font-mono);
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 1024px) {
+  .footer {
+    left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .footer-center {
+    display: none;
+  }
+}

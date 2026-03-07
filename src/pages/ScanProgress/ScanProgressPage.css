@@ -1,0 +1,140 @@
+.scan-progress-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.scan-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  opacity: 0;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.scan-progress-meta {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+/* Grid */
+.scan-progress-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: var(--space-lg);
+}
+
+.scan-progress-main {
+  opacity: 0;
+}
+
+.scan-progress-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* Live stat */
+.live-stat {
+  opacity: 0;
+}
+
+.live-stat-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-md);
+  color: var(--text-secondary);
+}
+
+.live-pulse {
+  color: var(--severity-low);
+  animation: pulse 2s ease infinite;
+}
+
+.live-stat-value {
+  font-size: var(--font-size-4xl);
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--brand-primary);
+}
+
+.live-stat-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+}
+
+/* Target info */
+.target-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.target-info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-secondary);
+}
+
+.target-info-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+}
+
+.target-info-value {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+/* Findings feed */
+.live-findings {
+  opacity: 0;
+}
+
+.finding-feed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.finding-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-size-xs);
+  padding: var(--space-sm);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  animation: slideInRight 0.3s ease both;
+}
+
+/* Actions */
+.scan-progress-actions {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: center;
+  opacity: 0;
+}
+
+@media (max-width: 1024px) {
+  .scan-progress-grid {
+    grid-template-columns: 1fr;
+  }
+}
