@@ -1,0 +1,38 @@
+.risk-score {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.risk-svg {
+  transform: rotate(-90deg);
+}
+
+.risk-progress {
+  transition: stroke-dashoffset 1.4s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: ringGlow 3s ease-in-out infinite;
+}
+
+.risk-content {
+  position: absolute;
+  text-align: center;
+}
+
+.risk-number {
+  font-size: 1.8rem;
+  font-weight: 800;
+  line-height: 1;
+  font-family: var(--font-mono);
+  transition: color var(--transition-slow);
+  animation: countUp 0.5s ease both 0.3s;
+}
+
+.risk-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  font-weight: 500;
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
