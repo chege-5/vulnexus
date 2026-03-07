@@ -1,22 +1,16 @@
 ```
- ██████╗██╗   ██╗██████╗ ███████╗██████╗
-██╔════╝╚██╗ ██╔╝██╔══██╗██╔════╝██╔══██╗
-██║      ╚████╔╝ ██████╔╝█████╗  ██████╔╝
-██║       ╚██╔╝  ██╔══██╗██╔══╝  ██╔══██╗
-╚██████╗   ██║   ██████╔╝███████╗██║  ██║
- ╚═════╝   ╚═╝   ╚═════╝ ╚══════╝╚═╝  ╚═╝
-
-███████╗███████╗███╗   ██╗████████╗██╗███╗   ██╗███████╗██╗
-██╔════╝██╔════╝████╗  ██║╚══██╔══╝██║████╗  ██║██╔════╝██║
-███████╗█████╗  ██╔██╗ ██║   ██║   ██║██╔██╗ ██║█████╗  ██║
-╚════██║██╔══╝  ██║╚██╗██║   ██║   ██║██║╚██╗██║██╔══╝  ██║
-███████║███████╗██║ ╚████║   ██║   ██║██║ ╚████║███████╗███████╗
-╚══════╝╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝
+██╗   ██╗██╗   ██╗██╗     ███╗   ██╗███████╗██╗  ██╗██╗   ██╗███████╗
+██║   ██║██║   ██║██║     ████╗  ██║██╔════╝╚██╗██╔╝██║   ██║██╔════╝
+██║   ██║██║   ██║██║     ██╔██╗ ██║█████╗   ╚███╔╝ ██║   ██║███████╗
+╚██╗ ██╔╝██║   ██║██║     ██║╚██╗██║██╔══╝   ██╔██╗ ██║   ██║╚════██║
+ ╚████╔╝ ╚██████╔╝███████╗██║ ╚████║███████╗██╔╝ ██╗╚██████╔╝███████║
+  ╚═══╝   ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝
+                    V U L N E X U S
 ```
 
 # VulnExus — Security Dashboard
 
-A full-featured web security monitoring dashboard. Run scans, track vulnerabilities, manage reports, and visualize threat data across your infrastructure — all from a single interface.
+A full-featured web security monitoring dashboard. Run scans, track vulnerabilities, manage reports, and visualize threat data across your infrastructure, all from a single interface.
 
 ![Vite](https://img.shields.io/badge/vite-7.3.1-646CFF?style=flat-square&logo=vite&logoColor=white)
 ![React](https://img.shields.io/badge/react-19.2.0-61DAFB?style=flat-square&logo=react&logoColor=black)
@@ -27,7 +21,7 @@ A full-featured web security monitoring dashboard. Run scans, track vulnerabilit
 
 ## Overview
 
-VulnExus is a front-end security dashboard built with React and Vite. It ships with a mock API layer that simulates real backend behavior — realistic delays, occasional random failures, and demo auth — so you can develop and test the full UI without a running server.
+VulnExus is a front-end security dashboard built with React and Vite. It ships with a mock API layer that simulates real backend behavior - realistic delays, occasional random failures, and demo auth - so you can develop and test the full UI without a running server.
 
 The landing page features a live 3D globe rendered with WebGL (Three.js + React Three Fiber) showing animated network arcs between global threat coordinates. The dashboard itself covers scanning, vulnerability tracking, report generation, user management, and historical analysis.
 
@@ -166,7 +160,7 @@ All protected routes redirect to `/login` if the user is not authenticated. Afte
 - Downloadable report stubs
 
 **Misc**
-- Dark / light theme toggle (persists via localStorage)
+- Dark/light theme toggle (persists via localStorage)
 - Responsive layout with collapsible sidebar and mobile drawer
 - Skeleton loaders on every async route
 - Toast notification system
@@ -178,12 +172,12 @@ All protected routes redirect to `/login` if the user is not authenticated. Afte
 
 The 3D globe on the landing page is built entirely with Three.js primitives via React Three Fiber:
 
-- **WorldDots** — 5 000 instanced `CircleGeometry` meshes distributed across the globe surface using spherical coordinate math
-- **AnimatedArc** — `TubeGeometry` arcs drawn progressively with `setDrawRange` each frame, following a `CubicBezierCurve3` path between two lat/lng coordinates
-- **PulseMarker** — small sphere at each arc endpoint that scales up and down via `useFrame`
-- **Starfield** — 1 000 points distributed on a large outer sphere shell
+- **WorldDots** - 5,000 instanced `CircleGeometry` meshes distributed across the globe's surface using spherical coordinate math
+- **AnimatedArc** - `TubeGeometry` arcs drawn progressively with `setDrawRange` each frame, following a `CubicBezierCurve3` path between two lat/lng coordinates
+- **PulseMarker** - small sphere at each arc endpoint that scales up and down via `useFrame.`
+- **Starfield** - 1,000 points distributed on a large outer sphere shell
 
-Eight random arc events are generated on page load and each arc loops through a draw → hold → fade cycle.
+Eight random arc events are generated on page load, and each arc loops through a draw → hold → fade cycle.
 
 ---
 
