@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Lock, Mail, ArrowRight, Loader } from 'lucide-react';
 import logo from '../../assets/logo.png';
 import { useAuth } from '../../context/AuthContext';
@@ -7,7 +7,7 @@ import { useTypingEffect } from '../../hooks/useApi';
 import './Login.css';
 
 export default function Login() {
-  const { login } = useAuth();
+  const { signIn } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,13 +21,13 @@ export default function Login() {
     e.preventDefault();
     setError('');
     if (!email || !password) { setError('Please enter email and password'); return; }
+
     setLoading(true);
     try {
-      await new Promise(r => setTimeout(r, 1000));
-      login({ email, name: 'Alex Morgan' });
+      await signIn(email, password);
       navigate('/dashboard');
-    } catch {
-      setError('Invalid credentials');
+    } catch (err) {
+      setError(err.message || 'Invalid credentials');
     } finally {
       setLoading(false);
     }
@@ -124,7 +124,7 @@ export default function Login() {
             </button>
 
             <p className="login-footer-text">
-              Demo: use demo@vulnexus.io / demo123
+              Don't have an account? <Link to="/signup" className="form-link">Sign up</Link>
             </p>
           </form>
         </div>

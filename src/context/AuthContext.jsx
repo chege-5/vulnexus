@@ -1,48 +1,62 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext();
-const SESSION_TTL = 8 * 60 * 60 * 1000; // 8 hours
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem('vulnexus-user');
-      if (!saved) return null;
-      const parsed = JSON.parse(saved);
-      if (parsed?.expiresAt && parsed.expiresAt < Date.now()) {
-        localStorage.removeItem('vulnexus-user');
-        return null;
-      }
-      return parsed;
-    } catch {
-      localStorage.removeItem('vulnexus-user');
-      return null;
-    }
-  });
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = (userData) => {
-    const u = {
-      id: '1',
-      name: userData.name || 'Alex Morgan',
-      email: userData.email || 'alex@vulnexus.io',
-      role: 'Admin',
-      avatar: null,
-      expiresAt: Date.now() + SESSION_TTL,
-    };
-    setUser(u);
-    localStorage.setItem('vulnexus-user', JSON.stringify(u));
+  useEffect(() => {
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const signIn = async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) throw error;
+    return data;
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('vulnexus-user');
+  const signUp = async (email, password, name) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name, // Store the user's name in their user_metadata
+        },
+      },
+    });
+    if (error) throw error;
+    return data;
+  };
+
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
-      {children}
+    <AuthContext.Provider value={{ user, signIn, signUp, signOut, isAuthenticated: !!user, loading }}>
+      {!loading && children}
     </AuthContext.Provider>
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext);

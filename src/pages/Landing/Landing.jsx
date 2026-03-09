@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   Shield, Sun, Moon, ArrowRight, Zap, Globe as GlobeIcon, Lock,
   BarChart3, Scan, Users, ChevronRight, Check, Star, Activity,
-  ShieldCheck, Eye, Server, Wifi, AlertTriangle, TrendingUp
+  ShieldCheck, Eye, Server, Wifi
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAnimatedCounter, useTypingEffect, useInView } from '../../hooks/useApi';

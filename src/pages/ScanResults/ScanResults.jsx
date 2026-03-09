@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Download, Filter, Share2 } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
 import api from '../../api/mockApi';

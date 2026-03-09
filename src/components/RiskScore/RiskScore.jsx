@@ -7,8 +7,12 @@ export default function RiskScore({ score = 0, size = 120, strokeWidth = 8, anim
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (current / 100) * circumference;
 
+  if (!animated && current !== score) {
+    setCurrent(score);
+  }
+
   useEffect(() => {
-    if (!animated) { setCurrent(score); return; }
+    if (!animated) return;
     let frame;
     const start = performance.now();
     const duration = 1200;
@@ -25,11 +29,11 @@ export default function RiskScore({ score = 0, size = 120, strokeWidth = 8, anim
 
   const color = score >= 80 ? 'var(--severity-critical)' :
     score >= 60 ? 'var(--severity-high)' :
-    score >= 40 ? 'var(--severity-medium)' : 'var(--severity-low)';
+      score >= 40 ? 'var(--severity-medium)' : 'var(--severity-low)';
 
   const label = score >= 80 ? 'Critical' :
     score >= 60 ? 'High' :
-    score >= 40 ? 'Medium' : 'Low';
+      score >= 40 ? 'Medium' : 'Low';
 
   return (
     <div className="risk-score" role="meter" aria-valuenow={score} aria-valuemin={0} aria-valuemax={100} aria-label={`Risk score: ${score}`}>

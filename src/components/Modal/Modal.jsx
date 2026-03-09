@@ -6,11 +6,13 @@ export default function Modal({ open, onClose, title, children, size = 'md' }) {
   const [visible, setVisible] = useState(open);
   const [closing, setClosing] = useState(false);
 
+  if (open && !visible) {
+    setClosing(false);
+    setVisible(true);
+  }
+
   useEffect(() => {
-    if (open) {
-      setClosing(false);
-      setVisible(true);
-    } else if (visible) {
+    if (!open && visible) {
       setClosing(true);
       const t = setTimeout(() => {
         setVisible(false);
