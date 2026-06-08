@@ -23,6 +23,8 @@ const UsersPage = lazy(() => import('./pages/Users/UsersPage'));
 const ScanHistory = lazy(() => import('./pages/ScanHistory/ScanHistory'));
 const Notifications = lazy(() => import('./pages/Notifications/Notifications'));
 const Help = lazy(() => import('./pages/Help/Help'));
+const SubscriptionPage = lazy(() => import('./pages/Subscription/SubscriptionPage'));
+const AdminPortal = lazy(() => import('./pages/Admin/AdminPortal'));
 
 /* ─── Protected layout wrapper ─── */
 function AppLayout({ children }) {
@@ -80,6 +82,25 @@ function ProtectedRoute({ children }) {
   return <AppLayout>{children}</AppLayout>;
 }
 
+function AdminRoute({ children }) {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return <SkeletonPage />;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (user.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <AppLayout>{children}</AppLayout>;
+}
+
 /* ─── Root App ─── */
 export default function App() {
   return (
@@ -125,6 +146,8 @@ export default function App() {
         <Route path="/history" element={<ProtectedRoute><ScanHistory /></ProtectedRoute>} />
         <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
         <Route path="/help" element={<ProtectedRoute><Help /></ProtectedRoute>} />
+        <Route path="/pricing" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
+        <Route path="/admin" element={<AdminRoute><AdminPortal /></AdminRoute>} />
 
         {/* Default redirect */}
         <Route path="*" element={<Navigate to="/" replace />} />

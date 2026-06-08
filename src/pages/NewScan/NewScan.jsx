@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import DomainInput from '../../components/DomainInput/DomainInput';
 import UploadBox from '../../components/UploadBox/UploadBox';
+import { backendApi } from '../../api/backendApi';
 import './NewScan.css';
 
 const scanTypes = [
@@ -31,8 +32,9 @@ export default function NewScan() {
     setLaunching(true);
     setLaunchError('');
     try {
-      await new Promise(r => setTimeout(r, 1200));
-      navigate('/scan/progress');
+      const target = /^https?:\/\//i.test(targets[0]) ? targets[0] : `https://${targets[0]}`;
+      const response = await backendApi.scanUrl(target);
+      navigate('/scan/progress', { state: { scanId: response.scan_id, target } });
     } catch (err) {
       setLaunchError(err.message || 'Failed to launch scan. Please try again.');
       setLaunching(false);

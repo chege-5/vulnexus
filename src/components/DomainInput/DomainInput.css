@@ -27,6 +27,7 @@
 
 .domain-input {
   flex: 1;
+  min-width: 0;
   border: none;
   background: transparent;
   padding: 8px 0;
@@ -75,9 +76,12 @@
   font-family: var(--font-mono);
   color: var(--text-primary);
   animation: fadeUp 0.2s ease both;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .domain-tag-remove {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -86,6 +90,22 @@
   border-radius: 50%;
   color: var(--text-tertiary);
   transition: all var(--transition-fast);
+}
+
+@media (max-width: 420px) {
+  .domain-input-field {
+    align-items: stretch;
+    flex-wrap: wrap;
+    padding: 8px;
+  }
+
+  .domain-icon {
+    margin-top: 8px;
+  }
+
+  .domain-add-btn {
+    width: 100%;
+  }
 }
 
 .domain-tag-remove:hover {

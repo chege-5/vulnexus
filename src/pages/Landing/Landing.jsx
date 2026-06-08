@@ -121,14 +121,15 @@ const testimonials = [
 ];
 
 /* ─── Stat Counter Component ─── */
-function StatCounter({ value, label, icon: Icon, color, delay = 0 }) {
+function StatCounter({ value, label, icon, color, delay = 0 }) {
+  const IconComponent = icon;
   const [ref, inView] = useInView();
   const count = useAnimatedCounter(inView ? value : 0, 2000);
 
   return (
     <div ref={ref} className="hero-stat" style={{ animationDelay: `${delay}ms` }}>
       <div className="hero-stat-icon" style={{ color, background: `${color}15` }}>
-        <Icon size={20} />
+        <IconComponent size={20} />
       </div>
       <div className="hero-stat-value">{count.toLocaleString()}</div>
       <div className="hero-stat-label">{label}</div>
@@ -137,7 +138,8 @@ function StatCounter({ value, label, icon: Icon, color, delay = 0 }) {
 }
 
 /* ─── Feature Card ─── */
-function FeatureCard({ icon: Icon, title, desc, color, index }) {
+function FeatureCard({ icon, title, desc, color, index }) {
+  const IconComponent = icon;
   const [ref, inView] = useInView();
   return (
     <div
@@ -146,7 +148,7 @@ function FeatureCard({ icon: Icon, title, desc, color, index }) {
       style={{ animationDelay: `${index * 100}ms` }}
     >
       <div className="feature-icon" style={{ color, background: `${color}12` }}>
-        <Icon size={24} />
+        <IconComponent size={24} />
       </div>
       <h3 className="feature-title">{title}</h3>
       <p className="feature-desc">{desc}</p>

@@ -78,6 +78,10 @@ export default function Settings() {
                   <input type="text" value={user?.role || 'Admin'} readOnly className="readonly" />
                 </div>
                 <div className="form-group">
+                  <label className="form-label">Subscription Plan</label>
+                  <input type="text" value={(user?.subscription_tier || 'free').toUpperCase()} readOnly className="readonly" />
+                </div>
+                <div className="form-group">
                   <label className="form-label">Timezone</label>
                   <select value={timezone} onChange={(e) => setTimezone(e.target.value)}>
                     <option>UTC</option>

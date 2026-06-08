@@ -9,7 +9,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { useApi, useAnimatedCounter } from '../../hooks/useApi';
-import api from '../../api/mockApi';
+import { backendApi } from '../../api/backendApi';
 import RiskScore from '../../components/RiskScore/RiskScore';
 import VulnerabilityTable from '../../components/VulnerabilityTable/VulnerabilityTable';
 import ScanCard from '../../components/ScanCard/ScanCard';
@@ -26,7 +26,8 @@ const CHART_COLORS = {
 };
 
 export default function Dashboard() {
-  const { data, loading, error, refetch } = useApi(() => api.getDashboardStats());
+  const { data: rawData, loading, error, refetch } = useApi(() => backendApi.getDashboard());
+  const data = rawData ? normalizeDashboard(rawData) : null;
 
   // Hooks must be called unconditionally — before any early returns
   const totalScans = useAnimatedCounter(data?.totalScans);
@@ -151,6 +152,42 @@ export default function Dashboard() {
       </div>
     </div>
   );
+}
+
+function normalizeDashboard(raw) {
+  const severity = raw.vulnerabilities_by_severity || {};
+  const recentScans = (raw.recent_scans || []).map((scan) => ({
+    id: scan.scan_id,
+    target: scan.target,
+    type: scan.type,
+    status: scan.status,
+    findings: 0,
+    date: scan.queued_at ? new Date(scan.queued_at).toLocaleDateString() : '—',
+    duration: '—',
+    riskScore: Math.round(scan.overall_score || 0),
+  }));
+
+  return {
+    totalScans: raw.total_scans || 0,
+    activeThreats: Object.values(severity).reduce((sum, count) => sum + Number(count || 0), 0),
+    resolvedThisMonth: raw.completed_scans || 0,
+    riskScore: Math.round(raw.average_risk_score || 0),
+    vulnerabilities: {
+      critical: severity.Critical || 0,
+      high: severity.High || 0,
+      medium: severity.Medium || 0,
+      low: severity.Low || 0,
+    },
+    scanTrend: recentScans.length
+      ? recentScans.slice(0, 7).reverse().map((scan, index) => ({
+          date: scan.date || `Scan ${index + 1}`,
+          scans: 1,
+          threats: scan.riskScore >= 50 ? 1 : 0,
+        }))
+      : [{ date: 'Now', scans: 0, threats: 0 }],
+    recentScans,
+    topVulnerabilities: [],
+  };
 }
 
 function StatCard({ icon, label, value, color, index }) {

@@ -13,6 +13,7 @@ html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 body {
@@ -28,6 +29,7 @@ body {
   color: var(--text-primary);
   line-height: 1.6;
   min-height: 100vh;
+  overflow-x: hidden;
   transition: background-color var(--transition-base), color var(--transition-base);
 }
 
@@ -206,6 +208,8 @@ code, pre {
 
 .app-content {
   flex: 1;
+  width: 100%;
+  min-width: 0;
   padding: var(--space-xl);
   padding-top: calc(var(--header-height) + var(--space-xl));
   padding-bottom: calc(var(--footer-height) + var(--space-xl));
@@ -244,6 +248,7 @@ code, pre {
 
 /* Card base */
 .card {
+  min-width: 0;
   background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-lg);
@@ -376,5 +381,35 @@ code, pre {
   .app-content {
     padding: var(--space-sm);
     padding-top: calc(var(--header-height) + var(--space-sm));
+    padding-bottom: calc(var(--footer-height) + var(--space-md));
+  }
+
+  .card {
+    padding: var(--space-md);
+  }
+}
+
+@media (max-width: 480px) {
+  .app-content {
+    padding: var(--space-sm);
+    padding-top: calc(var(--header-height) + var(--space-sm));
+  }
+
+  .btn,
+  .btn-lg {
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+  }
+
+  .page-title {
+    font-size: var(--font-size-xl);
+  }
+}
+
+@media (hover: none) {
+  .card:hover,
+  .btn:hover {
+    transform: none;
   }
 }

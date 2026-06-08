@@ -1,58 +1,43 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { createContext, useContext, useState } from 'react';
+import { authStorage, backendApi } from '../api/backendApi';
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  const [user, setUser] = useState(() => authStorage.getUser());
+  const [token, setToken] = useState(() => authStorage.getToken());
+  const loading = false;
 
   const signIn = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
-    return data;
+    const session = await backendApi.login(email, password);
+    authStorage.setSession(session.token, session.user);
+    setUser(session.user);
+    setToken(session.token);
+    return session;
   };
 
-  const signUp = async (email, password, name) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name, // Store the user's name in their user_metadata
-        },
-      },
-    });
-    if (error) throw error;
-    return data;
+  const signUp = async (email, password, profileDetails) => {
+    const session = await backendApi.register(email, password, profileDetails);
+    authStorage.setSession(session.token, session.user);
+    setUser(session.user);
+    setToken(session.token);
+    return session;
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    authStorage.clear();
+    setUser(null);
+    setToken(null);
+  };
+
+  const updateUser = (updatedFields) => {
+    const merged = { ...user, ...updatedFields };
+    authStorage.setSession(token, merged);
+    setUser(merged);
   };
 
   return (
-    <AuthContext.Provider value={{ user, signIn, signUp, signOut, isAuthenticated: !!user, loading }}>
+    <AuthContext.Provider value={{ user, token, signIn, signUp, signOut, updateUser, isAuthenticated: !!user, loading }}>
       {!loading && children}
     </AuthContext.Provider>
   );

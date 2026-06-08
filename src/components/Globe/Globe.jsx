@@ -13,6 +13,11 @@ const COLORS = {
   patch: "#00ff9c"
 };
 
+function seededRandom(seed) {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
 function clamp(v, min, max) {
   return Math.min(max, Math.max(min, v));
 }
@@ -32,32 +37,32 @@ function latLngToVector3(lat, lon, radius = GLOBE_RADIUS) {
   );
 }
 
-function randomEvent() {
+function eventAt(index) {
   return {
     start: {
-      lat: Math.random() * 180 - 90,
-      long: Math.random() * 360 - 180
+      lat: seededRandom(index * 11 + 1) * 180 - 90,
+      long: seededRandom(index * 11 + 2) * 360 - 180
     },
     end: {
-      lat: Math.random() * 180 - 90,
-      long: Math.random() * 360 - 180
+      lat: seededRandom(index * 11 + 3) * 180 - 90,
+      long: seededRandom(index * 11 + 4) * 360 - 180
     },
-    orbit: 1.2 + Math.random() * 0.25,
-    delay: Math.random(),
-    color: Object.values(COLORS)[Math.floor(Math.random() * 4)]
+    orbit: 1.2 + seededRandom(index * 11 + 5) * 0.25,
+    delay: seededRandom(index * 11 + 6),
+    color: Object.values(COLORS)[Math.floor(seededRandom(index * 11 + 7) * 4)]
   };
 }
 
-const EVENTS = Array.from({ length: 8 }, randomEvent);
+const EVENTS = Array.from({ length: 8 }, (_, index) => eventAt(index));
 
 function Starfield() {
   const geometry = useMemo(() => {
     const positions = new Float32Array(1000 * 3);
 
     for (let i = 0; i < 1000; i++) {
-      const radius = 6 + Math.random() * 4;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(Math.random() * 2 - 1);
+      const radius = 6 + seededRandom(i * 3 + 100) * 4;
+      const theta = seededRandom(i * 3 + 101) * Math.PI * 2;
+      const phi = Math.acos(seededRandom(i * 3 + 102) * 2 - 1);
 
       positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
       positions[i * 3 + 1] = radius * Math.cos(phi);
@@ -86,12 +91,12 @@ function WorldDots() {
   const meshRef = useRef();
   const count = 5000;
 
-  const dummy = new THREE.Object3D();
+  const dummy = useMemo(() => new THREE.Object3D(), []);
 
   useLayoutEffect(() => {
     for (let i = 0; i < count; i++) {
-      const lat = Math.random() * 180 - 90;
-      const lon = Math.random() * 360 - 180;
+      const lat = seededRandom(i * 2 + 5000) * 180 - 90;
+      const lon = seededRandom(i * 2 + 5001) * 360 - 180;
 
       const pos = latLngToVector3(lat, lon, 1.01);
       dummy.position.copy(pos);
@@ -102,7 +107,7 @@ function WorldDots() {
     }
 
     meshRef.current.instanceMatrix.needsUpdate = true;
-  }, []);
+  }, [dummy]);
 
   return (
     <instancedMesh ref={meshRef} args={[null, null, count]}>
@@ -184,7 +189,7 @@ function AnimatedArc({ event }) {
 
   useEffect(() => {
     geometry.setDrawRange(0, 0);
-  }, []);
+  }, [geometry]);
 
   useFrame(({ clock }) => {
     const cycle = (clock.getElapsedTime() * 0.2 + event.delay) % 1;
