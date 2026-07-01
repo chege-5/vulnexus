@@ -26,7 +26,7 @@ const pageTitles = {
 
 export default function Header({ onToggleSidebar, sidebarOpen }) {
   const { theme, toggleTheme } = useTheme();
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
   const { notifications, unreadCount, markAllAsRead } = useNotifications();
   const location = useLocation();
 
@@ -178,7 +178,7 @@ export default function Header({ onToggleSidebar, sidebarOpen }) {
                 <User size={16} /> Profile
               </Link>
               <div className="profile-dropdown-divider" />
-              <button className="profile-dropdown-item danger" role="menuitem" onClick={logout}>
+              <button className="profile-dropdown-item danger" role="menuitem" onClick={signOut}>
                 <LogOut size={16} /> Sign Out
               </button>
             </div>

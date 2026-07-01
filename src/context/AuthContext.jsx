@@ -1,48 +1,58 @@
 import { createContext, useContext, useState } from 'react';
+import { authStorage, backendApi } from '../api/backendApi';
 
 const AuthContext = createContext();
-const SESSION_TTL = 8 * 60 * 60 * 1000; // 8 hours
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem('vulnexus-user');
-      if (!saved) return null;
-      const parsed = JSON.parse(saved);
-      if (parsed?.expiresAt && parsed.expiresAt < Date.now()) {
-        localStorage.removeItem('vulnexus-user');
-        return null;
-      }
-      return parsed;
-    } catch {
-      localStorage.removeItem('vulnexus-user');
-      return null;
-    }
-  });
+  const [user, setUser] = useState(() => authStorage.getUser());
+  const [token, setToken] = useState(() => authStorage.getToken());
+  const loading = false;
 
-  const login = (userData) => {
-    const u = {
-      id: '1',
-      name: userData.name || 'Alex Morgan',
-      email: userData.email || 'alex@vulnexus.io',
-      role: 'Admin',
-      avatar: null,
-      expiresAt: Date.now() + SESSION_TTL,
-    };
-    setUser(u);
-    localStorage.setItem('vulnexus-user', JSON.stringify(u));
+  const completeSession = (session) => {
+    authStorage.setSession(session.token, session.user);
+    setUser(session.user);
+    setToken(session.token);
+    return session;
   };
 
-  const logout = () => {
+  const signIn = async (email, password) => {
+    const session = await backendApi.login(email, password);
+    return completeSession(session);
+  };
+
+  const signUp = async (email, password, profileDetails) => {
+    const session = await backendApi.register(email, password, profileDetails);
+    return completeSession(session);
+  };
+
+  const beginOAuth = async (provider, flow = 'login') => {
+    const authorizationUrl = await backendApi.getOAuthStartUrl(provider, flow);
+    window.location.assign(authorizationUrl);
+  };
+
+  const completeOAuthCallback = async (provider, code, redirectUri) => {
+    const session = await backendApi.exchangeOAuthCode(provider, code, redirectUri);
+    return completeSession(session);
+  };
+
+  const signOut = async () => {
+    authStorage.clear();
     setUser(null);
-    localStorage.removeItem('vulnexus-user');
+    setToken(null);
+  };
+
+  const updateUser = (updatedFields) => {
+    const merged = { ...user, ...updatedFields };
+    authStorage.setSession(token, merged);
+    setUser(merged);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
-      {children}
+    <AuthContext.Provider value={{ user, token, signIn, signUp, signOut, updateUser, beginOAuth, completeOAuthCallback, isAuthenticated: !!user, loading }}>
+      {!loading && children}
     </AuthContext.Provider>
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext);

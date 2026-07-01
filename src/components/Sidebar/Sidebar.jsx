@@ -1,8 +1,10 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Scan, Play, FileCheck, FileText, Bug, Settings,
-  Users, History, Bell, HelpCircle, ChevronLeft, ChevronRight
+  Users, History, Bell, HelpCircle, ChevronLeft, ChevronRight,
+  CreditCard, Sliders
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import logo from '../../assets/logo.png';
 import './Sidebar.css';
 
@@ -17,6 +19,8 @@ const navItems = [
   { to: '/history', icon: History, label: 'Scan History' },
   { to: '/users', icon: Users, label: 'Team' },
   { to: '/notifications', icon: Bell, label: 'Alerts' },
+  { to: '/pricing', icon: CreditCard, label: 'Pricing & Billing' },
+  { to: '/admin', icon: Sliders, label: 'Admin Portal', adminOnly: true },
   { divider: true },
   { to: '/settings', icon: Settings, label: 'Settings' },
   { to: '/help', icon: HelpCircle, label: 'Help' },
@@ -24,6 +28,8 @@ const navItems = [
 
 export default function Sidebar({ collapsed, onCollapse, mobileOpen }) {
   const location = useLocation();
+  const { user } = useAuth();
+  const isAdmin = ['admin', 'super_admin'].includes(user?.role);
 
   return (
     <aside
@@ -42,6 +48,7 @@ export default function Sidebar({ collapsed, onCollapse, mobileOpen }) {
 
       <nav className="sidebar-nav">
         {navItems.map((item, i) => {
+          if (item.adminOnly && !isAdmin) return null;
           if (item.divider) return <div key={`d-${i}`} className="sidebar-divider" />;
           const Icon = item.icon;
           const isActive = location.pathname === item.to ||

@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  User, Bell, Shield, Palette, Key, Save
+  User, Bell, Shield, Palette, Key, Save, Github, RefreshCw, Unlink2
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { backendApi } from '../../api/backendApi';
 import './Settings.css';
 
 const tabs = [
   { id: 'profile', icon: User, label: 'Profile' },
   { id: 'security', icon: Shield, label: 'Security' },
+  { id: 'connected', icon: Github, label: 'Connected Accounts' },
   { id: 'notifications', icon: Bell, label: 'Notifications' },
   { id: 'appearance', icon: Palette, label: 'Appearance' },
   { id: 'api', icon: Key, label: 'API Keys' },
@@ -17,8 +19,13 @@ const tabs = [
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('profile');
   const { theme, toggleTheme } = useTheme();
-  const { user } = useAuth();
+  const { user, beginOAuth } = useAuth();
   const [saved, setSaved] = useState(false);
+  const [githubConnection, setGithubConnection] = useState(null);
+  const [connectionLoading, setConnectionLoading] = useState(false);
+  const [connectionError, setConnectionError] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
 
   // Controlled profile fields — initialized from localStorage or user context
   const storedSettings = (() => {
@@ -28,10 +35,62 @@ export default function Settings() {
   const [email, setEmail] = useState(storedSettings.email ?? user?.email ?? '');
   const [timezone, setTimezone] = useState(storedSettings.timezone ?? 'UTC');
 
+  useEffect(() => {
+    if (activeTab !== 'connected') return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        setConnectionLoading(true);
+        setConnectionError('');
+        const data = await backendApi.getGithubConnection();
+        if (!cancelled) setGithubConnection(data);
+      } catch (err) {
+        if (!cancelled) setConnectionError(err.message || 'Failed to load connected accounts');
+      } finally {
+        if (!cancelled) setConnectionLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab]);
+
   const handleSave = () => {
     localStorage.setItem('cs-settings', JSON.stringify({ name, email, timezone }));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleConnectGithub = async () => {
+    await beginOAuth('github', 'link');
+  };
+
+  const handleSyncGithub = async () => {
+    setSyncing(true);
+    setConnectionError('');
+    try {
+      const data = await backendApi.syncGithubConnection();
+      setGithubConnection(data);
+    } catch (err) {
+      setConnectionError(err.message || 'Failed to sync GitHub account');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleDisconnectGithub = async () => {
+    setDisconnecting(true);
+    setConnectionError('');
+    try {
+      await backendApi.disconnectGithubConnection();
+      setGithubConnection({ connected: false, organizations: [], repositories: [], branches: [], permissions: {} });
+    } catch (err) {
+      setConnectionError(err.message || 'Failed to disconnect GitHub account');
+    } finally {
+      setDisconnecting(false);
+    }
   };
 
   return (
@@ -76,6 +135,10 @@ export default function Settings() {
                 <div className="form-group">
                   <label className="form-label">Role</label>
                   <input type="text" value={user?.role || 'Admin'} readOnly className="readonly" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Subscription Plan</label>
+                  <input type="text" value={(user?.subscription_tier || 'free').toUpperCase()} readOnly className="readonly" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Timezone</label>
@@ -127,6 +190,81 @@ export default function Settings() {
                   </label>
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'connected' && (
+            <div className="settings-section animate-fade-up">
+              <h3 className="settings-section-title">Connected Accounts</h3>
+              <p className="settings-section-subtitle">Link your GitHub account to unlock repository scans and richer metadata.</p>
+
+              {connectionLoading ? (
+                <div className="settings-empty">Loading connected accounts...</div>
+              ) : githubConnection?.connected ? (
+                <div className="connected-accounts-grid">
+                  <div className="connected-account-card">
+                    <div className="connected-account-header">
+                      <Github size={18} />
+                      <div>
+                        <h4>GitHub</h4>
+                        <p>{githubConnection.github_username || 'Connected account'}</p>
+                      </div>
+                    </div>
+                    <div className="connected-account-meta">
+                      <span><strong>Connected:</strong> {githubConnection.connected ? 'Yes' : 'No'}</span>
+                      <span><strong>Last Sync:</strong> {githubConnection.last_synced_at ? new Date(githubConnection.last_synced_at).toLocaleString() : 'Never'}</span>
+                      <span><strong>Repositories:</strong> {githubConnection.repositories?.length || 0}</span>
+                      <span><strong>Organizations:</strong> {githubConnection.organizations?.length || 0}</span>
+                    </div>
+                    <div className="connected-account-permissions">
+                      <div className="connected-account-label">Permissions</div>
+                      <div className="chip-row">
+                        {Object.entries(githubConnection.permissions || {}).map(([key, value]) => (
+                          <span key={key} className={`meta-chip ${value ? 'success' : 'muted'}`}>{key}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="connection-actions">
+                      <button className="btn btn-secondary btn-sm" onClick={handleSyncGithub} disabled={syncing}>
+                        <RefreshCw size={14} /> {syncing ? 'Syncing...' : 'Sync now'}
+                      </button>
+                      <button className="btn btn-danger btn-sm" onClick={handleDisconnectGithub} disabled={disconnecting}>
+                        <Unlink2 size={14} /> {disconnecting ? 'Disconnecting...' : 'Disconnect'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="connected-account-card">
+                    <div className="connected-account-label">Organizations</div>
+                    <div className="chip-row">
+                      {(githubConnection.organizations || []).map((org) => (
+                        <span key={org.login || org.id} className="meta-chip">{org.login || org.name || 'Org'}</span>
+                      ))}
+                    </div>
+
+                    <div className="connected-account-label">Repositories</div>
+                    <div className="chip-row">
+                      {(githubConnection.repositories || []).slice(0, 10).map((repo) => (
+                        <span key={repo.full_name || repo.name} className="meta-chip">{repo.full_name || repo.name}</span>
+                      ))}
+                    </div>
+
+                    <div className="connected-account-label">Branches</div>
+                    <div className="chip-row">
+                      {(githubConnection.branches || []).slice(0, 12).map((branch) => (
+                        <span key={branch} className="meta-chip">{branch}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="connected-empty-state">
+                  <p>No GitHub account connected yet.</p>
+                  <button className="btn btn-primary" onClick={handleConnectGithub}>Connect GitHub</button>
+                </div>
+              )}
+
+              {connectionError && <div className="login-error" role="alert">{connectionError}</div>}
             </div>
           )}
 

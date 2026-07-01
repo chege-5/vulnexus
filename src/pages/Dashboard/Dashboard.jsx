@@ -1,5 +1,5 @@
 import { createElement } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Shield, Scan, Bug, CheckCircle, TrendingUp, ArrowRight,
   AlertTriangle, Activity, Globe, Server
@@ -9,7 +9,8 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { useApi, useAnimatedCounter } from '../../hooks/useApi';
-import api from '../../api/mockApi';
+import { backendApi } from '../../api/backendApi';
+import { normalizeDashboard } from '../../api/normalizers';
 import RiskScore from '../../components/RiskScore/RiskScore';
 import VulnerabilityTable from '../../components/VulnerabilityTable/VulnerabilityTable';
 import ScanCard from '../../components/ScanCard/ScanCard';
@@ -26,12 +27,18 @@ const CHART_COLORS = {
 };
 
 export default function Dashboard() {
-  const { data, loading, error, refetch } = useApi(() => api.getDashboardStats());
+  const navigate = useNavigate();
+  const { data: rawData, loading, error, refetch } = useApi(() => backendApi.getDashboard());
+  const data = rawData ? normalizeDashboard(rawData) : null;
 
   // Hooks must be called unconditionally — before any early returns
   const totalScans = useAnimatedCounter(data?.totalScans);
   const activeThreats = useAnimatedCounter(data?.activeThreats);
   const resolved = useAnimatedCounter(data?.resolvedThisMonth);
+  const projects = useAnimatedCounter(data?.projects);
+  const repositories = useAnimatedCounter(data?.repositories);
+  const organizations = useAnimatedCounter(data?.organizations);
+  const openFindings = useAnimatedCounter(data?.openFindings);
 
   if (loading) return <SkeletonPage />;
   if (error) return <ErrorState message={error} onRetry={refetch} />;
@@ -60,9 +67,25 @@ export default function Dashboard() {
           icon={CheckCircle} label="Resolved (Month)" value={resolved}
           color="var(--severity-low)" index={2}
         />
+        <StatCard
+          icon={Activity} label="Projects" value={projects}
+          color="var(--brand-secondary)" index={3}
+        />
+        <StatCard
+          icon={Server} label="Repositories" value={repositories}
+          color="var(--brand-primary)" index={4}
+        />
+        <StatCard
+          icon={Globe} label="Organizations" value={organizations}
+          color="var(--severity-medium)" index={5}
+        />
+        <StatCard
+          icon={Bug} label="Open Findings" value={openFindings}
+          color="var(--severity-high)" index={6}
+        />
         <div
           className="stat-card animate-fade-up"
-          style={{ '--i': 3 }}
+          style={{ '--i': 7 }}
           aria-label={`Risk Score: ${data.riskScore}`}
         >
           <div className="stat-risk-score">
@@ -128,21 +151,144 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <div className="dash-section animate-fade-up stagger-7">
+        <div className="section-header">
+          <h3 className="section-title">Security Posture</h3>
+        </div>
+        <div className="posture-grid">
+          <div className="posture-card">
+            <span className="posture-label">Compliance Score</span>
+            <span className="posture-value">{data.complianceScore != null ? `${Math.round(data.complianceScore)}%` : 'N/A'}</span>
+          </div>
+          <div className="posture-card">
+            <span className="posture-label">OWASP</span>
+            <span className="posture-value">{data.owaspScore != null ? `${Math.round(data.owaspScore)}%` : 'N/A'}</span>
+          </div>
+          <div className="posture-card">
+            <span className="posture-label">NIST</span>
+            <span className="posture-value">{data.nistScore != null ? `${Math.round(data.nistScore)}%` : 'N/A'}</span>
+          </div>
+          <div className="posture-card">
+            <span className="posture-label">CWE</span>
+            <span className="posture-value">{data.cweScore != null ? `${Math.round(data.cweScore)}%` : 'N/A'}</span>
+          </div>
+          <div className="posture-card">
+            <span className="posture-label">Final Audit Verdict</span>
+            <span className={`posture-value health-${String(data.finalAuditVerdict || '').toLowerCase()}`}>{data.finalAuditVerdict}</span>
+          </div>
+          <div className="posture-card">
+            <span className="posture-label">Certificate Health</span>
+            <span className={`posture-value health-${String(data.certificateHealth || '').toLowerCase().replace(/\s+/g, '-')}`}>{data.certificateHealth}</span>
+          </div>
+          <div className="posture-card">
+            <span className="posture-label">TLS Health</span>
+            <span className={`posture-value health-${String(data.tlsHealth || '').toLowerCase().replace(/\s+/g, '-')}`}>{data.tlsHealth}</span>
+          </div>
+        </div>
+        {data.finalAuditReason ? <p className="muted" style={{ marginTop: 12 }}>{data.finalAuditReason}</p> : null}
+      </div>
+
+      <div className="dash-section animate-fade-up stagger-8">
+        <div className="section-header">
+          <h3 className="section-title">Repository Status</h3>
+        </div>
+        <div className="repository-table card">
+          <table>
+            <thead>
+              <tr>
+                <th>Repository</th>
+                <th>Branch</th>
+                <th>Status</th>
+                <th>Visibility</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.repositoryStatus.length > 0 ? data.repositoryStatus.map((repo) => (
+                <tr key={`${repo.name}-${repo.branch}`}>
+                  <td>{repo.name}</td>
+                  <td>{repo.branch}</td>
+                  <td><span className={`badge badge-${repo.status === 'connected' ? 'success' : 'warning'}`}>{repo.status}</span></td>
+                  <td>{repo.private ? 'Private' : 'Public'}</td>
+                </tr>
+              )) : (
+                <tr><td colSpan="4">No connected repositories found.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="dash-section animate-fade-up stagger-9">
+        <div className="section-header">
+          <h3 className="section-title">Risk Heatmap</h3>
+        </div>
+        <div className="heatmap-row">
+          {data.riskHeatmap.map((entry) => (
+            <div key={entry.day} className="heatmap-cell">
+              <div className="heatmap-bar" style={{ height: `${Math.max(18, entry.findings * 14)}px` }} />
+              <span>{entry.day}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="dash-section animate-fade-up stagger-10">
+        <div className="section-header">
+          <h3 className="section-title">Recent Reports</h3>
+          <Link to="/reports" className="section-link">View All <ArrowRight size={14} /></Link>
+        </div>
+        <div className="dash-scan-grid">
+          {data.recentReports.map((report) => (
+            <div key={report.id} className="card report-mini-card">
+              <h4>{report.name}</h4>
+              <p>{report.target}</p>
+              <span className="badge badge-info">{report.type}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="dash-section animate-fade-up stagger-11">
+        <div className="section-header">
+          <h3 className="section-title">Recent AI Conversations</h3>
+        </div>
+        <div className="card ai-conversation-card">
+          {data.recentAiConversations.length > 0 ? data.recentAiConversations.map((item) => (
+            <div key={item.id || item.title} className="ai-conversation-item">
+              <strong>{item.title || 'AI Insight'}</strong>
+              <p>{item.summary || item.message || 'Context-aware guidance generated from your project data.'}</p>
+            </div>
+          )) : (
+            <p className="empty-inline">No AI conversations yet. Ask AI from any report, finding, or repository view.</p>
+          )}
+        </div>
+      </div>
+
       {/* Recent Scans */}
-      <div className="dash-section">
+      <div className="dash-section animate-fade-up stagger-12">
         <div className="section-header">
           <h3 className="section-title">Recent Scans</h3>
           <Link to="/history" className="section-link">View All <ArrowRight size={14} /></Link>
         </div>
         <div className="dash-scan-grid">
           {data.recentScans.map((scan, i) => (
-            <ScanCard key={scan.id} scan={scan} index={i} />
+            <ScanCard
+              key={scan.id}
+              scan={scan}
+              index={i}
+              onClick={() => {
+                if (scan.status === 'completed') navigate(`/scan/results/${scan.id}`);
+                else if (scan.status === 'running' || scan.status === 'queued') {
+                  navigate(`/scan/progress/${scan.id}`, { state: { scanId: scan.id, target: scan.target } });
+                }
+              }}
+            />
           ))}
         </div>
       </div>
 
       {/* Vulnerabilities Table */}
-      <div className="dash-section animate-fade-up stagger-8">
+      <div className="dash-section animate-fade-up stagger-13">
         <div className="section-header">
           <h3 className="section-title">Top Vulnerabilities</h3>
           <Link to="/vulnerability" className="section-link">View All <ArrowRight size={14} /></Link>

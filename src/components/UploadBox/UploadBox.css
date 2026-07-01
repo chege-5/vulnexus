@@ -9,6 +9,7 @@
   cursor: pointer;
   transition: all var(--transition-fast);
   text-align: center;
+  min-width: 0;
 }
 
 .upload-box:hover, .upload-box.drag-over {
@@ -62,6 +63,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .upload-success-icon {
@@ -72,6 +75,9 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .upload-clear {
@@ -88,4 +94,10 @@
 .upload-clear:hover {
   background: rgba(239, 68, 68, 0.1);
   color: var(--severity-critical);
+}
+
+@media (max-width: 480px) {
+  .upload-box {
+    padding: var(--space-lg) var(--space-md);
+  }
 }

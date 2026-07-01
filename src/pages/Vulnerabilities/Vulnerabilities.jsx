@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Bug, Search, Filter, ChevronDown, ExternalLink, AlertTriangle,
+  Bug, Search, ChevronDown, ExternalLink, AlertTriangle,
   AlertCircle, Info, ShieldAlert
 } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
-import { api } from '../../api/mockApi';
+import { backendApi } from '../../api/backendApi';
+import { normalizeVulnerability } from '../../api/normalizers';
 import { SkeletonTable } from '../../components/SkeletonLoader/SkeletonLoader';
 import ErrorState from '../../components/ErrorState/ErrorState';
 import './Vulnerabilities.css';
@@ -18,7 +19,10 @@ const severityIcons = {
 };
 
 export default function Vulnerabilities() {
-  const { data: vulns, loading, error, refetch } = useApi(() => api.getVulnerabilities());
+  const { data: vulns, loading, error, refetch } = useApi(async () => {
+    const raw = await backendApi.getVulnerabilities();
+    return raw.map(normalizeVulnerability);
+  });
   const [search, setSearch] = useState('');
   const [severityFilter, setSeverityFilter] = useState('all');
   const [sortField, setSortField] = useState('severity');
@@ -28,7 +32,7 @@ export default function Vulnerabilities() {
   const severityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
 
   const filtered = (vulns || [])
-    .filter(v => {
+    .filter((v) => {
       if (severityFilter !== 'all' && v.severity !== severityFilter) return false;
       if (search) {
         const s = search.toLowerCase();
@@ -54,7 +58,7 @@ export default function Vulnerabilities() {
   }, {});
 
   const handleSort = (field) => {
-    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    if (sortField === field) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else { setSortField(field); setSortDir('desc'); }
   };
 
@@ -73,9 +77,8 @@ export default function Vulnerabilities() {
         </div>
       </div>
 
-      {/* Severity summary */}
       <div className="vuln-summary animate-fade-up stagger-1">
-        {['critical', 'high', 'medium', 'low'].map(sev => (
+        {['critical', 'high', 'medium', 'low'].map((sev) => (
           <button
             key={sev}
             className={`vuln-summary-card ${severityFilter === sev ? 'active' : ''}`}
@@ -87,7 +90,6 @@ export default function Vulnerabilities() {
         ))}
       </div>
 
-      {/* Filters */}
       <div className="vuln-filters animate-fade-up stagger-2">
         <div className="vuln-search">
           <Search size={16} />
@@ -95,13 +97,12 @@ export default function Vulnerabilities() {
             type="text"
             placeholder="Search vulnerabilities..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
             aria-label="Search vulnerabilities"
           />
         </div>
       </div>
 
-      {/* Table */}
       <div className="card vuln-table-card animate-fade-up stagger-3">
         <table className="vuln-table" role="table">
           <thead>
@@ -139,7 +140,9 @@ export default function Vulnerabilities() {
                   <td className="vuln-title-cell">{v.name}</td>
                   <td className="vuln-target-cell">{v.target || '—'}</td>
                   <td>
-                    <span className={`vuln-cvss vuln-cvss-${v.severity}`}>{v.cvss?.toFixed(1) || '—'}</span>
+                    <span className={`vuln-cvss vuln-cvss-${v.severity}`}>
+                      {v.cvss != null ? v.cvss.toFixed(1) : '—'}
+                    </span>
                   </td>
                   <td>
                     <span className={`badge badge-${v.status === 'open' ? 'high' : 'low'}`}>

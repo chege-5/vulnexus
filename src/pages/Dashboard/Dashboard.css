@@ -101,6 +101,118 @@
   gap: var(--space-md);
 }
 
+.posture-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+
+.posture-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.posture-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.posture-value {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+}
+
+.health-healthy {
+  color: var(--severity-low);
+}
+
+.health-needs-attention {
+  color: var(--severity-high);
+}
+
+.repository-table {
+  overflow: hidden;
+}
+
+.repository-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.repository-table th,
+.repository-table td {
+  border-bottom: 1px solid var(--border-secondary);
+  padding: 12px 10px;
+  text-align: left;
+  font-size: var(--font-size-sm);
+}
+
+.heatmap-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.heatmap-cell {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.heatmap-bar {
+  width: 100%;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.9), rgba(239, 68, 68, 0.15));
+}
+
+.report-mini-card {
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.report-mini-card h4 {
+  margin: 0;
+  font-size: var(--font-size-base);
+}
+
+.report-mini-card p {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.ai-conversation-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.ai-conversation-item {
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+}
+
+.ai-conversation-item p,
+.empty-inline {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
 .dash-chart,
 .dash-chart-sm {
   opacity: 0;
@@ -169,5 +281,13 @@
 @media (max-width: 640px) {
   .dash-stats {
     grid-template-columns: 1fr;
+  }
+
+  .posture-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .heatmap-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

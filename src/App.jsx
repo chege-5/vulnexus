@@ -10,6 +10,8 @@ import { SkeletonPage } from './components/SkeletonLoader/SkeletonLoader';
 /* Lazy-loaded pages */
 const Landing = lazy(() => import('./pages/Landing/Landing'));
 const Login = lazy(() => import('./pages/Login/Login'));
+const Signup = lazy(() => import('./pages/Signup/Signup'));
+const AuthCallback = lazy(() => import('./pages/AuthCallback/AuthCallback'));
 const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'));
 const NewScan = lazy(() => import('./pages/NewScan/NewScan'));
 const ScanProgressPage = lazy(() => import('./pages/ScanProgress/ScanProgressPage'));
@@ -22,6 +24,8 @@ const UsersPage = lazy(() => import('./pages/Users/UsersPage'));
 const ScanHistory = lazy(() => import('./pages/ScanHistory/ScanHistory'));
 const Notifications = lazy(() => import('./pages/Notifications/Notifications'));
 const Help = lazy(() => import('./pages/Help/Help'));
+const SubscriptionPage = lazy(() => import('./pages/Subscription/SubscriptionPage'));
+const AdminPortal = lazy(() => import('./pages/Admin/AdminPortal'));
 
 /* ─── Protected layout wrapper ─── */
 function AppLayout({ children }) {
@@ -65,11 +69,34 @@ function AppLayout({ children }) {
 
 /* ─── Auth guard ─── */
 function ProtectedRoute({ children }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const location = useLocation();
+
+  if (loading) {
+    return <SkeletonPage />;
+  }
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return <AppLayout>{children}</AppLayout>;
+}
+
+function AdminRoute({ children }) {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return <SkeletonPage />;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (!['admin', 'super_admin'].includes(user.role)) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <AppLayout>{children}</AppLayout>;
@@ -81,39 +108,59 @@ export default function App() {
     <>
       <BackgroundFX />
       <Routes>
-      {/* Public */}
-      <Route
-        path="/"
-        element={
-          <Suspense fallback={<SkeletonPage />}>
-            <Landing />
-          </Suspense>
-        }
-      />
-      <Route
-        path="/login"
-        element={
-          <Suspense fallback={<SkeletonPage />}>
-            <Login />
-          </Suspense>
-        }
-      />
+        {/* Public */}
+        <Route
+          path="/"
+          element={
+            <Suspense fallback={<SkeletonPage />}>
+              <Landing />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <Suspense fallback={<SkeletonPage />}>
+              <Login />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/signup"
+          element={
+            <Suspense fallback={<SkeletonPage />}>
+              <Signup />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/auth/:provider/callback"
+          element={
+            <Suspense fallback={<SkeletonPage />}>
+              <AuthCallback />
+            </Suspense>
+          }
+        />
 
-      {/* Protected */}
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/scan/new" element={<ProtectedRoute><NewScan /></ProtectedRoute>} />
-      <Route path="/scan/progress" element={<ProtectedRoute><ScanProgressPage /></ProtectedRoute>} />
-      <Route path="/scan/results" element={<ProtectedRoute><ScanResults /></ProtectedRoute>} />
-      <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-      <Route path="/vulnerability" element={<ProtectedRoute><Vulnerabilities /></ProtectedRoute>} />
-      <Route path="/vulnerability/:id" element={<ProtectedRoute><VulnerabilityDetail /></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-      <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
-      <Route path="/history" element={<ProtectedRoute><ScanHistory /></ProtectedRoute>} />
-      <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-      <Route path="/help" element={<ProtectedRoute><Help /></ProtectedRoute>} />
+        {/* Protected */}
+        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/scan/new" element={<ProtectedRoute><NewScan /></ProtectedRoute>} />
+        <Route path="/scan/progress" element={<ProtectedRoute><ScanProgressPage /></ProtectedRoute>} />
+        <Route path="/scan/progress/:scanId" element={<ProtectedRoute><ScanProgressPage /></ProtectedRoute>} />
+        <Route path="/scan/results" element={<ProtectedRoute><ScanResults /></ProtectedRoute>} />
+        <Route path="/scan/results/:scanId" element={<ProtectedRoute><ScanResults /></ProtectedRoute>} />
+        <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+        <Route path="/vulnerability" element={<ProtectedRoute><Vulnerabilities /></ProtectedRoute>} />
+        <Route path="/vulnerability/:id" element={<ProtectedRoute><VulnerabilityDetail /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
+        <Route path="/history" element={<ProtectedRoute><ScanHistory /></ProtectedRoute>} />
+        <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+        <Route path="/help" element={<ProtectedRoute><Help /></ProtectedRoute>} />
+        <Route path="/pricing" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
+        <Route path="/admin" element={<AdminRoute><AdminPortal /></AdminRoute>} />
 
-      {/* Default redirect */}
+        {/* Default redirect */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
