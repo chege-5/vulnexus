@@ -1,6 +1,8 @@
-import { Download, Filter, Share2 } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Download, Share2 } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
-import api from '../../api/mockApi';
+import { backendApi } from '../../api/backendApi';
+import { normalizeScanResult } from '../../api/normalizers';
 import VulnerabilityTable from '../../components/VulnerabilityTable/VulnerabilityTable';
 import RiskScore from '../../components/RiskScore/RiskScore';
 import { SkeletonPage } from '../../components/SkeletonLoader/SkeletonLoader';
@@ -11,8 +13,23 @@ import {
 import './ScanResults.css';
 
 export default function ScanResults() {
-  const { data: scan, loading, error, refetch } = useApi(() => api.getScanById('s1'));
-  const { data: vulns } = useApi(() => api.getVulnerabilities());
+  const { scanId } = useParams();
+  const navigate = useNavigate();
+
+  const { data: scan, loading, error, refetch } = useApi(async () => {
+    if (!scanId) throw new Error('Scan ID is required');
+    const result = await backendApi.getScanResult(scanId);
+    return normalizeScanResult(result);
+  }, [scanId]);
+
+  if (!scanId) {
+    return (
+      <ErrorState
+        message="No scan selected. Open results from Scan History or after a scan completes."
+        onRetry={() => navigate('/history')}
+      />
+    );
+  }
 
   if (loading) return <SkeletonPage />;
   if (error) return <ErrorState message={error} onRetry={refetch} />;
@@ -26,17 +43,30 @@ export default function ScanResults() {
     { name: 'Info', count: scan.findings.info, fill: '#38BDF8' },
   ];
 
+  const handleDownload = async () => {
+    try {
+      await backendApi.downloadReport(scanId);
+    } catch (err) {
+      alert(err.message || 'Report not available yet');
+    }
+  };
+
   return (
     <div className="scan-results">
       <div className="scan-results-header animate-fade-up">
         <div>
           <h2 className="page-title">Scan Results</h2>
-          <p className="page-desc">Target: <span className="mono">{scan.target}</span> · {scan.type} · {scan.duration}</p>
+          <p className="page-desc">
+            Target: <span className="mono">{scan.target}</span> · {scan.type} · {scan.duration}
+          </p>
         </div>
         <div className="scan-results-actions">
-          <button className="btn btn-secondary btn-sm"><Filter size={14} /> Filter</button>
-          <button className="btn btn-secondary btn-sm"><Share2 size={14} /> Share</button>
-          <button className="btn btn-primary btn-sm"><Download size={14} /> Export PDF</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => navigate('/history')}>
+            <Share2 size={14} /> History
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={handleDownload}>
+            <Download size={14} /> Export PDF
+          </button>
         </div>
       </div>
 
@@ -74,7 +104,7 @@ export default function ScanResults() {
               <div key={i} className="results-step">
                 <span className={`results-step-status ${step.status}`} />
                 <span className="results-step-name">{step.name}</span>
-                <span className="results-step-duration">{step.duration}</span>
+                <span className="results-step-duration">{step.duration || '—'}</span>
               </div>
             ))}
           </div>
@@ -82,7 +112,7 @@ export default function ScanResults() {
       </div>
 
       <div className="animate-fade-up stagger-4">
-        <VulnerabilityTable vulnerabilities={vulns || []} />
+        <VulnerabilityTable vulnerabilities={scan.vulnerabilities} />
       </div>
     </div>
   );

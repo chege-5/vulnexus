@@ -8,20 +8,31 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => authStorage.getToken());
   const loading = false;
 
-  const signIn = async (email, password) => {
-    const session = await backendApi.login(email, password);
+  const completeSession = (session) => {
     authStorage.setSession(session.token, session.user);
     setUser(session.user);
     setToken(session.token);
     return session;
   };
 
+  const signIn = async (email, password) => {
+    const session = await backendApi.login(email, password);
+    return completeSession(session);
+  };
+
   const signUp = async (email, password, profileDetails) => {
     const session = await backendApi.register(email, password, profileDetails);
-    authStorage.setSession(session.token, session.user);
-    setUser(session.user);
-    setToken(session.token);
-    return session;
+    return completeSession(session);
+  };
+
+  const beginOAuth = async (provider, flow = 'login') => {
+    const authorizationUrl = await backendApi.getOAuthStartUrl(provider, flow);
+    window.location.assign(authorizationUrl);
+  };
+
+  const completeOAuthCallback = async (provider, code, redirectUri) => {
+    const session = await backendApi.exchangeOAuthCode(provider, code, redirectUri);
+    return completeSession(session);
   };
 
   const signOut = async () => {
@@ -37,7 +48,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, signIn, signUp, signOut, updateUser, isAuthenticated: !!user, loading }}>
+    <AuthContext.Provider value={{ user, token, signIn, signUp, signOut, updateUser, beginOAuth, completeOAuthCallback, isAuthenticated: !!user, loading }}>
       {!loading && children}
     </AuthContext.Provider>
   );

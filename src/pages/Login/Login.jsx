@@ -1,19 +1,20 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, Lock, Mail, ArrowRight, Loader } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, ArrowRight, Loader, Chrome, Github } from 'lucide-react';
 import logo from '../../assets/logo.png';
 import { useAuth } from '../../context/AuthContext';
 import { useTypingEffect } from '../../hooks/useApi';
 import './Login.css';
 
 export default function Login() {
-  const { signIn } = useAuth();
+  const { signIn, beginOAuth } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [oauthLoading, setOauthLoading] = useState('');
 
   const { displayed, done } = useTypingEffect('Secure your digital infrastructure.', 45);
 
@@ -24,12 +25,28 @@ export default function Login() {
 
     setLoading(true);
     try {
-      await signIn(email, password);
-      navigate('/dashboard');
+      const session = await signIn(email, password);
+      // Route appropriately based on user role
+      if (session.user.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err.message || 'Invalid credentials');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOAuth = async (provider) => {
+    setError('');
+    setOauthLoading(provider);
+    try {
+      await beginOAuth(provider, 'login');
+    } catch (err) {
+      setError(err.message || `Failed to start ${provider} sign-in`);
+      setOauthLoading('');
     }
   };
 
@@ -70,6 +87,18 @@ export default function Login() {
             <p className="login-form-subtitle">Sign in to your account</p>
 
             {error && <div className="login-error" role="alert">{error}</div>}
+
+            <div className="oauth-block">
+              <div className="oauth-divider"><span>Or continue with</span></div>
+              <div className="oauth-grid">
+                <button type="button" className="btn oauth-btn oauth-google" onClick={() => handleOAuth('google')} disabled={!!oauthLoading}>
+                  <Chrome size={16} /> {oauthLoading === 'google' ? 'Connecting...' : 'Google'}
+                </button>
+                <button type="button" className="btn oauth-btn oauth-github" onClick={() => handleOAuth('github')} disabled={!!oauthLoading}>
+                  <Github size={16} /> {oauthLoading === 'github' ? 'Connecting...' : 'GitHub'}
+                </button>
+              </div>
+            </div>
 
             <div className="form-group">
               <label className="form-label" htmlFor="email">Email</label>

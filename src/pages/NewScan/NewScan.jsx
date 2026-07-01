@@ -1,44 +1,169 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Scan, Globe, Shield, Zap, Server, FileSearch,
-  ChevronRight, Settings2, Loader
+  ChevronRight, Settings2, Loader, Upload, Github, RefreshCw, Link2
 } from 'lucide-react';
 import DomainInput from '../../components/DomainInput/DomainInput';
 import UploadBox from '../../components/UploadBox/UploadBox';
 import { backendApi } from '../../api/backendApi';
+import { useAuth } from '../../context/AuthContext';
 import './NewScan.css';
 
 const scanTypes = [
-  { id: 'full', icon: Shield, name: 'Full Scan', desc: 'Comprehensive vulnerability assessment', time: '~15-30 min' },
-  { id: 'quick', icon: Zap, name: 'Quick Scan', desc: 'Fast top-vulnerability check', time: '~3-5 min' },
-  { id: 'network', icon: Server, name: 'Network Scan', desc: 'Infrastructure & port scanning', time: '~10-20 min' },
-  { id: 'web', icon: Globe, name: 'Web App Scan', desc: 'OWASP Top 10 and web-specific tests', time: '~20-45 min' },
-  { id: 'ssl', icon: FileSearch, name: 'SSL/TLS Audit', desc: 'Certificate & encryption analysis', time: '~2-5 min' },
-  { id: 'compliance', icon: Settings2, name: 'Compliance Check', desc: 'PCI DSS, HIPAA, SOC2 validation', time: '~15-25 min' },
+  { id: 'url', icon: Globe, name: 'URL / TLS Scan', desc: 'Scan a live website TLS configuration', time: '~2-5 min', mode: 'url' },
+  { id: 'file', icon: Upload, name: 'Source Code Scan', desc: 'Upload source code or ZIP archive', time: '~3-10 min', mode: 'file' },
+  { id: 'github', icon: Github, name: 'GitHub Repository Scan', desc: 'Scan a live repository directly from GitHub', time: '~3-12 min', mode: 'github' },
+  { id: 'ssl', icon: FileSearch, name: 'SSL/TLS Audit', desc: 'Certificate & encryption analysis', time: '~2-5 min', mode: 'url' },
 ];
 
 export default function NewScan() {
   const navigate = useNavigate();
+  const { beginOAuth } = useAuth();
   const [targets, setTargets] = useState([]);
-  const [selectedType, setSelectedType] = useState('full');
+  const [uploadFile, setUploadFile] = useState(null);
+  const [selectedType, setSelectedType] = useState('url');
   const [scanName, setScanName] = useState('');
-  const [schedule, setSchedule] = useState('now');
   const [launching, setLaunching] = useState(false);
   const [launchError, setLaunchError] = useState('');
+  const [githubConnection, setGithubConnection] = useState(null);
+  const [connectionLoading, setConnectionLoading] = useState(false);
+  const [connectionError, setConnectionError] = useState('');
+  const [selectedOrg, setSelectedOrg] = useState('');
+  const [selectedRepo, setSelectedRepo] = useState('');
+  const [selectedBranch, setSelectedBranch] = useState('');
+  const [selectedFolder, setSelectedFolder] = useState('');
+  const [repoBranches, setRepoBranches] = useState([]);
+  const [branchLoading, setBranchLoading] = useState(false);
+
+  const activeType = scanTypes.find((t) => t.id === selectedType) || scanTypes[0];
+  const isFileMode = activeType.mode === 'file';
+  const isGitHubMode = activeType.mode === 'github';
+
+  const repositoryOptions = useMemo(() => githubConnection?.repositories || [], [githubConnection]);
+  const organizationOptions = useMemo(() => {
+    const orgs = githubConnection?.organizations || [];
+    const derived = repositoryOptions.map((repo) => ({ login: repo.owner })).filter(Boolean);
+    return Array.from(new Map([...orgs, ...derived].map((org) => [org.login, org])).values());
+  }, [githubConnection, repositoryOptions]);
+
+  const filteredRepositories = useMemo(() => {
+    if (!selectedOrg) return repositoryOptions;
+    return repositoryOptions.filter((repo) => repo.owner === selectedOrg || repo.full_name?.startsWith(`${selectedOrg}/`));
+  }, [repositoryOptions, selectedOrg]);
+
+  const canLaunch = isFileMode ? !!uploadFile : isGitHubMode ? !!githubConnection?.connected && !!selectedOrg && !!selectedRepo && !!selectedBranch : targets.length > 0;
+
+  useEffect(() => {
+    if (!isGitHubMode) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        setConnectionLoading(true);
+        setConnectionError('');
+        const data = await backendApi.getGithubConnection();
+        if (cancelled) return;
+        setGithubConnection(data);
+        const initialOrg = data.organizations?.[0]?.login || data.repositories?.[0]?.owner || '';
+        setSelectedOrg(initialOrg);
+        const initialRepo = data.repositories?.find((repo) => repo.owner === initialOrg || repo.full_name?.startsWith(`${initialOrg}/`)) || data.repositories?.[0];
+        setSelectedRepo(initialRepo?.name || '');
+        setSelectedBranch(initialRepo?.default_branch || initialRepo?.branches?.[0] || '');
+      } catch (err) {
+        if (!cancelled) setConnectionError(err.message || 'Failed to load GitHub connection');
+      } finally {
+        if (!cancelled) setConnectionLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isGitHubMode]);
+
+  useEffect(() => {
+    if (!selectedOrg || !selectedRepo || !isGitHubMode) return;
+
+    const repo = filteredRepositories.find((item) => item.name === selectedRepo || item.full_name === `${selectedOrg}/${selectedRepo}`);
+    if (repo?.branches?.length) {
+      setRepoBranches(repo.branches);
+      setSelectedBranch(repo.branches[0]);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        setBranchLoading(true);
+        const data = await backendApi.getGithubRepositoryBranches(selectedOrg, selectedRepo);
+        if (cancelled) return;
+        setRepoBranches(data.branches || []);
+        setSelectedBranch(data.branches?.[0] || '');
+      } catch (err) {
+        if (!cancelled) setConnectionError(err.message || 'Failed to load repository branches');
+      } finally {
+        if (!cancelled) setBranchLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedOrg, selectedRepo, filteredRepositories, isGitHubMode]);
 
   const handleLaunch = async () => {
-    if (targets.length === 0) return;
+    if (!canLaunch) return;
     setLaunching(true);
     setLaunchError('');
     try {
-      const target = /^https?:\/\//i.test(targets[0]) ? targets[0] : `https://${targets[0]}`;
-      const response = await backendApi.scanUrl(target);
-      navigate('/scan/progress', { state: { scanId: response.scan_id, target } });
+      let response;
+      let target;
+      let scanType;
+
+      if (isGitHubMode) {
+        response = await backendApi.scanGithubRepository({
+          organization: selectedOrg,
+          repository: selectedRepo,
+          branch: selectedBranch,
+          folder: selectedFolder,
+        });
+        target = `${selectedOrg}/${selectedRepo}${selectedFolder ? `/${selectedFolder}` : ''}`;
+        scanType = 'github';
+      } else if (isFileMode) {
+        response = await backendApi.uploadFile(uploadFile);
+        target = uploadFile.name;
+        scanType = 'file';
+      } else {
+        target = /^https?:\/\//i.test(targets[0]) ? targets[0] : `https://${targets[0]}`;
+        response = await backendApi.scanUrl(target);
+        scanType = 'url';
+      }
+
+      navigate(`/scan/progress/${response.scan_id}`, {
+        state: { scanId: response.scan_id, target, scanType },
+      });
     } catch (err) {
       setLaunchError(err.message || 'Failed to launch scan. Please try again.');
       setLaunching(false);
     }
+  };
+
+  const handleConnectGithub = async () => {
+    await beginOAuth('github', 'link');
+  };
+
+  const handleOrgChange = (org) => {
+    setSelectedOrg(org);
+    const repo = filteredRepositories.find((item) => item.owner === org || item.full_name?.startsWith(`${org}/`));
+    setSelectedRepo(repo?.name || '');
+    setSelectedBranch(repo?.default_branch || repo?.branches?.[0] || '');
+  };
+
+  const handleRepoChange = (repoName) => {
+    setSelectedRepo(repoName);
+    const repo = filteredRepositories.find((item) => item.name === repoName || item.full_name === `${selectedOrg}/${repoName}`);
+    setSelectedBranch(repo?.default_branch || repo?.branches?.[0] || '');
   };
 
   return (
@@ -51,19 +176,10 @@ export default function NewScan() {
       </div>
 
       <div className="new-scan-body">
-        {/* Targets */}
         <div className="card animate-fade-up stagger-1">
-          <h3 className="card-title">Targets</h3>
-          <DomainInput domains={targets} onChange={setTargets} />
-          <div className="separator" />
-          <UploadBox label="Upload target list" accept=".txt,.csv" />
-        </div>
-
-        {/* Scan Type */}
-        <div className="card animate-fade-up stagger-2">
           <h3 className="card-title">Scan Type</h3>
           <div className="scan-type-grid">
-            {scanTypes.map(type => {
+            {scanTypes.map((type) => {
               const Icon = type.icon;
               return (
                 <button
@@ -85,7 +201,89 @@ export default function NewScan() {
           </div>
         </div>
 
-        {/* Configuration */}
+        <div className="card animate-fade-up stagger-2">
+          <h3 className="card-title">{isFileMode ? 'Upload Source' : 'Targets'}</h3>
+          {isGitHubMode ? (
+            <div className="github-scan-panel">
+              {!githubConnection?.connected ? (
+                <div className="github-connect-empty">
+                  <Github size={24} />
+                  <p>Connect GitHub to scan repositories directly.</p>
+                  <button className="btn btn-primary btn-sm" onClick={handleConnectGithub}>
+                    <Link2 size={14} /> Connect GitHub
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="github-connection-row">
+                    <div>
+                      <div className="connected-label">Connected as</div>
+                      <strong>{githubConnection.github_username}</strong>
+                    </div>
+                    <button className="btn btn-secondary btn-sm" onClick={async () => {
+                      setConnectionLoading(true);
+                      try {
+                        const data = await backendApi.syncGithubConnection();
+                        setGithubConnection(data);
+                      } finally {
+                        setConnectionLoading(false);
+                      }
+                    }} disabled={connectionLoading}>
+                      <RefreshCw size={14} /> {connectionLoading ? 'Refreshing...' : 'Sync'}
+                    </button>
+                  </div>
+
+                  <div className="config-grid github-config-grid">
+                    <div className="form-group">
+                      <label className="form-label">Organization</label>
+                      <select value={selectedOrg} onChange={(e) => handleOrgChange(e.target.value)}>
+                        {organizationOptions.map((org) => (
+                          <option key={org.login} value={org.login}>{org.login}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Repository</label>
+                      <select value={selectedRepo} onChange={(e) => handleRepoChange(e.target.value)}>
+                        {filteredRepositories.map((repo) => (
+                          <option key={repo.full_name || repo.name} value={repo.name}>{repo.full_name || repo.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Branch</label>
+                      <select value={selectedBranch} onChange={(e) => setSelectedBranch(e.target.value)} disabled={branchLoading}>
+                        {(repoBranches || []).map((branch) => (
+                          <option key={branch} value={branch}>{branch}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Folder (optional)</label>
+                      <input
+                        type="text"
+                        value={selectedFolder}
+                        onChange={(e) => setSelectedFolder(e.target.value)}
+                        placeholder="src/services"
+                      />
+                    </div>
+                  </div>
+
+                  {connectionError && <div className="launch-error" role="alert">{connectionError}</div>}
+                </>
+              )}
+            </div>
+          ) : isFileMode ? (
+            <UploadBox
+              label="Upload source code or ZIP"
+              accept=".zip,.py,.js,.ts,.java,.go,.rs,.c,.cpp,.cs,.php,.rb,.txt"
+              onUpload={setUploadFile}
+            />
+          ) : (
+            <DomainInput domains={targets} onChange={setTargets} />
+          )}
+        </div>
+
         <div className="card animate-fade-up stagger-3">
           <h3 className="card-title">Configuration</h3>
           <div className="config-grid">
@@ -98,20 +296,9 @@ export default function NewScan() {
                 placeholder="e.g., Weekly Production Scan"
               />
             </div>
-            <div className="form-group">
-              <label className="form-label">Schedule</label>
-              <select value={schedule} onChange={(e) => setSchedule(e.target.value)}>
-                <option value="now">Run immediately</option>
-                <option value="1h">In 1 hour</option>
-                <option value="6h">In 6 hours</option>
-                <option value="24h">In 24 hours</option>
-                <option value="weekly">Weekly recurring</option>
-              </select>
-            </div>
           </div>
         </div>
 
-        {/* Launch */}
         <div className="new-scan-launch animate-fade-up stagger-4">
           {launchError && (
             <div className="launch-error" role="alert">{launchError}</div>
@@ -119,7 +306,7 @@ export default function NewScan() {
           <button
             className="btn btn-primary btn-lg launch-btn"
             onClick={handleLaunch}
-            disabled={targets.length === 0 || launching}
+            disabled={!canLaunch || launching}
           >
             {launching ? (
               <><Loader size={18} className="spin" /> Launching Scan...</>
@@ -127,8 +314,10 @@ export default function NewScan() {
               <><Scan size={18} /> Launch Scan <ChevronRight size={16} /></>
             )}
           </button>
-          {targets.length === 0 && (
-            <p className="launch-hint">Add at least one target to begin</p>
+          {!canLaunch && (
+            <p className="launch-hint">
+              {isFileMode ? 'Upload a file to begin' : 'Add at least one target to begin'}
+            </p>
           )}
         </div>
       </div>

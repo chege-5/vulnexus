@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { FileText, Download, Eye, Calendar, HardDrive, Loader, Plus } from 'lucide-react';
+import { FileText, Download, Eye, Calendar, HardDrive, Loader } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useApi } from '../../hooks/useApi';
-import api from '../../api/mockApi';
+import { backendApi } from '../../api/backendApi';
+import { normalizeReport } from '../../api/normalizers';
 import { SkeletonPage } from '../../components/SkeletonLoader/SkeletonLoader';
 import ErrorState from '../../components/ErrorState/ErrorState';
 import './Reports.css';
@@ -12,15 +14,26 @@ const statusColors = {
 };
 
 export default function Reports() {
-  const { data: reports, loading, error, refetch } = useApi(() => api.getReports());
+  const navigate = useNavigate();
+  const { data: reports, loading, error, refetch } = useApi(async () => {
+    const raw = await backendApi.getReports();
+    return raw.map(normalizeReport);
+  });
   const [downloading, setDownloading] = useState(null);
+  const [reportFormat, setReportFormat] = useState('pdf');
 
   if (loading) return <SkeletonPage />;
   if (error) return <ErrorState message={error} onRetry={refetch} />;
 
-  const handleDownload = (id) => {
+  const handleDownload = async (id) => {
     setDownloading(id);
-    setTimeout(() => setDownloading(null), 1500);
+    try {
+      await backendApi.downloadReport(id, reportFormat);
+    } catch (err) {
+      alert(err.message || 'Report not available yet');
+    } finally {
+      setDownloading(null);
+    }
   };
 
   return (
@@ -28,9 +41,18 @@ export default function Reports() {
       <div className="reports-header animate-fade-up">
         <div>
           <h2 className="page-title">Reports</h2>
-          <p className="page-desc">Generate & download security reports</p>
+          <p className="page-desc">Download audit reports from completed scans</p>
         </div>
-        <button className="btn btn-primary"><Plus size={16} /> Generate Report</button>
+        <div className="reports-toolbar">
+          <select value={reportFormat} onChange={(e) => setReportFormat(e.target.value)} className="report-format-select">
+            <option value="pdf">PDF</option>
+            <option value="html">HTML</option>
+            <option value="json">JSON</option>
+          </select>
+          <button className="btn btn-primary" onClick={() => navigate('/scan/new')}>
+            New Scan
+          </button>
+        </div>
       </div>
 
       <div className="reports-grid">
@@ -55,7 +77,13 @@ export default function Reports() {
               <div className="report-btns">
                 {report.status === 'ready' && (
                   <>
-                    <button className="btn btn-ghost btn-sm" aria-label="Preview"><Eye size={14} /></button>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      aria-label="View scan results"
+                      onClick={() => navigate(`/scan/results/${report.id}`)}
+                    >
+                      <Eye size={14} />
+                    </button>
                     <button
                       className="btn btn-primary btn-sm"
                       onClick={() => handleDownload(report.id)}
@@ -63,7 +91,7 @@ export default function Reports() {
                     >
                       {downloading === report.id
                         ? <><Loader size={14} className="spin" /> Downloading...</>
-                        : <><Download size={14} /> Download</>
+                        : <><Download size={14} /> {reportFormat.toUpperCase()}</>
                       }
                     </button>
                   </>
@@ -72,6 +100,12 @@ export default function Reports() {
             </div>
           </div>
         ))}
+        {(reports || []).length === 0 && (
+          <div className="empty-state">
+            <FileText size={32} />
+            <p>No reports yet. Complete a scan to generate one.</p>
+          </div>
+        )}
       </div>
     </div>
   );

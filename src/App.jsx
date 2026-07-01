@@ -11,6 +11,7 @@ import { SkeletonPage } from './components/SkeletonLoader/SkeletonLoader';
 const Landing = lazy(() => import('./pages/Landing/Landing'));
 const Login = lazy(() => import('./pages/Login/Login'));
 const Signup = lazy(() => import('./pages/Signup/Signup'));
+const AuthCallback = lazy(() => import('./pages/AuthCallback/AuthCallback'));
 const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'));
 const NewScan = lazy(() => import('./pages/NewScan/NewScan'));
 const ScanProgressPage = lazy(() => import('./pages/ScanProgress/ScanProgressPage'));
@@ -94,7 +95,7 @@ function AdminRoute({ children }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (user.role !== 'admin') {
+  if (!['admin', 'super_admin'].includes(user.role)) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -132,12 +133,22 @@ export default function App() {
             </Suspense>
           }
         />
+        <Route
+          path="/auth/:provider/callback"
+          element={
+            <Suspense fallback={<SkeletonPage />}>
+              <AuthCallback />
+            </Suspense>
+          }
+        />
 
         {/* Protected */}
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/scan/new" element={<ProtectedRoute><NewScan /></ProtectedRoute>} />
         <Route path="/scan/progress" element={<ProtectedRoute><ScanProgressPage /></ProtectedRoute>} />
+        <Route path="/scan/progress/:scanId" element={<ProtectedRoute><ScanProgressPage /></ProtectedRoute>} />
         <Route path="/scan/results" element={<ProtectedRoute><ScanResults /></ProtectedRoute>} />
+        <Route path="/scan/results/:scanId" element={<ProtectedRoute><ScanResults /></ProtectedRoute>} />
         <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
         <Route path="/vulnerability" element={<ProtectedRoute><Vulnerabilities /></ProtectedRoute>} />
         <Route path="/vulnerability/:id" element={<ProtectedRoute><VulnerabilityDetail /></ProtectedRoute>} />

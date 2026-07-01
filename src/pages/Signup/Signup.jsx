@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Eye, EyeOff, Lock, Mail, User, Phone, ArrowRight, ArrowLeft,
-  Loader, Check, Code, Briefcase, Globe, ShieldAlert
+  Loader, Check, Code, Briefcase, Globe, ShieldAlert, Chrome, Github
 } from 'lucide-react';
 import logo from '../../assets/logo.png';
 import { useAuth } from '../../context/AuthContext';
@@ -11,7 +11,7 @@ import '../Login/Login.css';
 import './Signup.css';
 
 export default function Signup() {
-  const { signUp } = useAuth();
+  const { signUp, beginOAuth } = useAuth();
   const navigate = useNavigate();
 
   // Step state
@@ -35,6 +35,7 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState('');
 
   const { displayed, done } = useTypingEffect('Create an account and configure your platform.', 45);
 
@@ -99,6 +100,17 @@ export default function Signup() {
     }
   };
 
+  const handleOAuth = async (provider) => {
+    setError('');
+    setOauthLoading(provider);
+    try {
+      await beginOAuth(provider, 'signup');
+    } catch (err) {
+      setError(err.message || `Failed to start ${provider} sign-up`);
+      setOauthLoading('');
+    }
+  };
+
   return (
     <div className="login-page">
       <div className="login-bg-gradient" />
@@ -146,6 +158,20 @@ export default function Signup() {
             </p>
 
             {error && <div className="login-error animate-shake" role="alert">{error}</div>}
+
+            {step === 1 && (
+              <div className="oauth-block">
+                <div className="oauth-divider"><span>Or continue with</span></div>
+                <div className="oauth-grid">
+                  <button type="button" className="btn oauth-btn oauth-google" onClick={() => handleOAuth('google')} disabled={!!oauthLoading}>
+                    <Chrome size={16} /> {oauthLoading === 'google' ? 'Connecting...' : 'Google'}
+                  </button>
+                  <button type="button" className="btn oauth-btn oauth-github" onClick={() => handleOAuth('github')} disabled={!!oauthLoading}>
+                    <Github size={16} /> {oauthLoading === 'github' ? 'Connecting...' : 'GitHub'}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {success ? (
               <div className="signup-success">

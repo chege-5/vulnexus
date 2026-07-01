@@ -120,6 +120,13 @@
   gap: 16px;
 }
 
+.oauth-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
 .step-actions .btn {
   flex: 1;
   display: flex;

@@ -29,7 +29,7 @@ const navItems = [
 export default function Sidebar({ collapsed, onCollapse, mobileOpen }) {
   const location = useLocation();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = ['admin', 'super_admin'].includes(user?.role);
 
   return (
     <aside

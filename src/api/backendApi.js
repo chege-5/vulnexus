@@ -22,11 +22,24 @@ async function request(path, options = {}) {
   const payload = contentType.includes('application/json') ? await response.json() : await response.text();
 
   if (!response.ok) {
-    const message = typeof payload === 'object' && payload?.detail ? payload.detail : 'Request failed';
+    const message = typeof payload === 'object' && payload?.detail
+      ? (typeof payload.detail === 'string' ? payload.detail : JSON.stringify(payload.detail))
+      : 'Request failed';
     throw new ApiError(message, response.status);
   }
 
   return payload;
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 export const authStorage = {
@@ -51,6 +64,21 @@ export const authStorage = {
 };
 
 export const backendApi = {
+  async getOAuthStartUrl(provider, flow = 'login') {
+    const data = await request(`/auth/${provider}/start?flow=${encodeURIComponent(flow)}`, {
+      method: 'GET',
+    });
+    return data.authorization_url;
+  },
+
+  async exchangeOAuthCode(provider, code, redirectUri) {
+    const data = await request(`/auth/${provider}/exchange`, {
+      method: 'POST',
+      body: JSON.stringify({ code, redirect_uri: redirectUri }),
+    });
+    return { token: data.access_token, refreshToken: data.refresh_token, user: data.user };
+  },
+
   async login(email, password) {
     const data = await request('/auth/login', {
       method: 'POST',
@@ -65,6 +93,29 @@ export const backendApi = {
       body: JSON.stringify({ email, password, ...profileDetails }),
     });
     return { token: data.access_token, user: data.user };
+  },
+
+  async getGithubConnection() {
+    return request('/auth/github/connection');
+  },
+
+  async syncGithubConnection() {
+    return request('/auth/github/connection/sync', { method: 'POST' });
+  },
+
+  async disconnectGithubConnection() {
+    return request('/auth/github/connection', { method: 'DELETE' });
+  },
+
+  async getGithubRepositoryBranches(owner, repository) {
+    return request(`/auth/github/repositories/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}/branches`);
+  },
+
+  async scanGithubRepository(payload) {
+    return request('/scan-github-repository', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 
   scanUrl(url) {
@@ -87,6 +138,10 @@ export const backendApi = {
     return request('/dashboard');
   },
 
+  getScans() {
+    return request('/scans');
+  },
+
   getScanStatus(scanId) {
     return request(`/scan-status/${scanId}`);
   },
@@ -95,11 +150,65 @@ export const backendApi = {
     return request(`/scan-result/${scanId}`);
   },
 
-  // Subscriptions
+  getVulnerabilities() {
+    return request('/vulnerabilities');
+  },
+
+  getVulnerabilityById(id) {
+    return request(`/vulnerabilities/${id}`);
+  },
+
+  getReports() {
+    return request('/reports');
+  },
+
+  async downloadReport(scanId, format = 'pdf') {
+    const token = localStorage.getItem(TOKEN_KEY);
+    const response = await fetch(`${API_BASE_URL}/report/${scanId}?format=${encodeURIComponent(format)}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      throw new ApiError('Failed to download report', response.status);
+    }
+    if (format === 'json') {
+      return response.json();
+    }
+    if (format === 'html') {
+      const blob = await response.blob();
+      const disposition = response.headers.get('content-disposition') || '';
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const filename = match?.[1] || `vulnexus_report_${scanId}.html`;
+      downloadBlob(blob, filename);
+      return;
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get('content-disposition') || '';
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const filename = match?.[1] || `vulnexus_report_${scanId}.pdf`;
+    downloadBlob(blob, filename);
+  },
+
+  getNotifications() {
+    return request('/notifications');
+  },
+
+  markNotificationRead(id) {
+    return request(`/notifications/${id}/read`, { method: 'PATCH' });
+  },
+
+  markAllNotificationsRead() {
+    return request('/notifications/read-all', { method: 'POST' });
+  },
+
+  deleteNotification(id) {
+    return request(`/notifications/${id}`, { method: 'DELETE' });
+  },
+
   subscribe(tier, paymentMethod, mpesaNumber = '') {
-    return request('/subscribe-plan', {
+    return request('/auth/subscribe', {
       method: 'POST',
       body: JSON.stringify({
+        plan: tier,
         tier,
         payment_method: paymentMethod,
         mpesa_number: mpesaNumber,
@@ -107,7 +216,6 @@ export const backendApi = {
     });
   },
 
-  // Admin Portal
   adminGetUsers() {
     return request('/admin/users');
   },
@@ -153,3 +261,5 @@ export const backendApi = {
     return request('/admin/analytics');
   },
 };
+
+export { API_BASE_URL };
