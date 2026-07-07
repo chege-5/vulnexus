@@ -2,84 +2,96 @@ import { useEffect, useMemo } from 'react';
 import logo from '../../assets/logo.png';
 import './IntroLoader.css';
 
-const INTRO_DURATION = 4200;
-const REDUCED_DURATION = 700;
+const INTRO_DURATION = 4100;
+const REDUCED_DURATION = 650;
 const WORD = 'VulNexus';
 
-const particlePalette = ['#7DB4E2', '#F8FBFF', '#D9B75F', '#EF4444'];
+const particlePalette = ['#6fb7ff', '#f8fbff', '#d9b75f', '#d94747'];
 
 function makeParticles(count) {
   return Array.from({ length: count }, (_, index) => {
-    const angle = (index / count) * Math.PI * 2;
-    const radius = 24 + (index % 9) * 6;
-    const drift = Math.sin(angle) * radius;
-    const fall = 110 + (index % 8) * 18;
+    const column = index % 12;
+    const row = Math.floor(index / 12);
+    const angle = ((index * 37) % 360) * (Math.PI / 180);
+    const drift = Math.cos(angle) * (18 + (index % 7) * 7);
+    const fall = 118 + row * 18 + (index % 5) * 10;
 
     return {
       id: index,
       color: particlePalette[index % particlePalette.length],
       x: `${drift.toFixed(2)}px`,
       y: `${fall}px`,
-      size: `${2 + (index % 3)}px`,
-      delay: `${(index % 14) * 32}ms`,
-      duration: `${780 + (index % 7) * 45}ms`,
-      left: `${12 + ((index * 17) % 76)}%`,
-      top: `${32 + ((index * 11) % 26)}%`,
+      size: `${1.5 + (index % 3) * 0.75}px`,
+      delay: `${(index % 16) * 24}ms`,
+      duration: `${720 + (index % 6) * 55}ms`,
+      left: `${9 + column * 7.4 + (row % 2) * 1.5}%`,
+      top: `${16 + ((index * 11) % 58)}%`,
     };
   });
 }
 
 function makeBackgroundParticles() {
-  return Array.from({ length: 18 }, (_, index) => ({
+  return Array.from({ length: 22 }, (_, index) => ({
     id: index,
-    left: `${(index * 47) % 100}%`,
-    top: `${(index * 31) % 100}%`,
+    left: `${4 + ((index * 43) % 92)}%`,
+    top: `${5 + ((index * 29) % 88)}%`,
+    opacity: `${0.08 + (index % 4) * 0.035}`,
   }));
 }
 
 function makeCracks() {
-  return Array.from({ length: 14 }, (_, index) => ({
+  return Array.from({ length: 18 }, (_, index) => ({
     id: index,
-    left: `${16 + ((index * 13) % 68)}%`,
-    top: `${22 + ((index * 19) % 48)}%`,
-    width: `${18 + (index % 4) * 9}px`,
-    rotate: `${(index * 23) - 80}deg`,
+    left: `${10 + ((index * 17) % 78)}%`,
+    top: `${15 + ((index * 23) % 64)}%`,
+    width: `${12 + (index % 5) * 7}px`,
+    rotate: `${-76 + ((index * 31) % 152)}deg`,
+    delay: `${index * 18}ms`,
   }));
 }
 
 export default function IntroLoader({ onComplete }) {
-  const particles = useMemo(() => makeParticles(54), []);
+  const particles = useMemo(() => makeParticles(72), []);
   const backgroundParticles = useMemo(() => makeBackgroundParticles(), []);
   const cracks = useMemo(() => makeCracks(), []);
 
   useEffect(() => {
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const timeout = window.setTimeout(onComplete, reducedMotion ? REDUCED_DURATION : INTRO_DURATION);
 
     return () => window.clearTimeout(timeout);
   }, [onComplete]);
 
   return (
-    <div className="intro-loader" role="status" aria-live="polite" aria-label="Opening VulNexus">
-      <div className="intro-glow" aria-hidden="true" />
-      <div className="intro-particles-bg" aria-hidden="true">
+    <div className="intro-loader" role="status" aria-live="polite" aria-label="Opening VulNexus" aria-atomic="true">
+      <span className="sr-only">Opening VulNexus</span>
+      <div className="intro-loader__glow" aria-hidden="true" />
+      <div className="intro-loader__field" aria-hidden="true">
         {backgroundParticles.map((particle) => (
-          <span key={particle.id} style={{ '--i': particle.id, left: particle.left, top: particle.top }} />
+          <span
+            key={particle.id}
+            style={{
+              '--i': particle.id,
+              '--particle-opacity': particle.opacity,
+              left: particle.left,
+              top: particle.top,
+            }}
+          />
         ))}
       </div>
 
-      <div className="intro-mark">
-        <div className="intro-logo-wrap">
-          <img src={logo} alt="" className="intro-logo" aria-hidden="true" />
-          <div className="intro-logo-glint" aria-hidden="true" />
+      <div className="intro-loader__lockup" aria-hidden="true">
+        <div className="intro-loader__logo-shell">
+          <img src={logo} alt="" className="intro-loader__logo" />
+          <span className="intro-loader__logo-light" />
         </div>
 
-        <div className="intro-word" aria-hidden="true">
-          <span className="intro-type">{WORD}</span>
-          <span className="intro-cursor">█</span>
+        <div className="intro-loader__word">
+          <span className="intro-loader__type">{WORD}</span>
+          <span className="intro-loader__cursor">█</span>
         </div>
 
-        <div className="intro-cracks" aria-hidden="true">
+        <div className="intro-loader__fractures">
           {cracks.map((crack) => (
             <span
               key={crack.id}
@@ -87,6 +99,7 @@ export default function IntroLoader({ onComplete }) {
                 '--i': crack.id,
                 '--crack-width': crack.width,
                 '--crack-rotate': crack.rotate,
+                '--crack-delay': crack.delay,
                 left: crack.left,
                 top: crack.top,
               }}
@@ -94,7 +107,7 @@ export default function IntroLoader({ onComplete }) {
           ))}
         </div>
 
-        <div className="intro-collapse-particles" aria-hidden="true">
+        <div className="intro-loader__collapse">
           {particles.map((particle) => (
             <span
               key={particle.id}

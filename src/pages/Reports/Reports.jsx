@@ -5,6 +5,7 @@ import { useApi } from '../../hooks/useApi';
 import { backendApi } from '../../api/backendApi';
 import { normalizeReport } from '../../api/normalizers';
 import { SkeletonPage } from '../../components/SkeletonLoader/SkeletonLoader';
+import ScanLoader from '../../components/ScanLoader/ScanLoader';
 import ErrorState from '../../components/ErrorState/ErrorState';
 import './Reports.css';
 
@@ -22,6 +23,7 @@ export default function Reports() {
   const [downloading, setDownloading] = useState(null);
   const [reportFormat, setReportFormat] = useState('pdf');
   const [actionMessage, setActionMessage] = useState('');
+  const activeReport = reports?.find((report) => report.id === downloading);
 
   if (loading) return <SkeletonPage />;
   if (error) return <ErrorState message={error} onRetry={refetch} />;
@@ -39,6 +41,19 @@ export default function Reports() {
 
   return (
     <div className="reports-page">
+      <ScanLoader
+        active={!!downloading}
+        title="Report Processing"
+        currentOperation={`Building ${reportFormat.toUpperCase()} Evidence Package`}
+        logs={[
+          { label: 'Collecting Scan Evidence', status: 'completed' },
+          { label: 'Normalizing Findings', status: 'completed' },
+          { label: 'Generating Executive Summary', status: 'running' },
+          { label: 'Building Technical Report', status: 'pending' },
+          { label: 'Preparing Download Package', status: 'pending' },
+        ]}
+        target={activeReport?.name}
+      />
       <div className="reports-header animate-fade-up">
         <div>
           <span className="page-kicker">Audit library</span>

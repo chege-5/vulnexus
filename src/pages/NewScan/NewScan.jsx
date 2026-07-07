@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import DomainInput from '../../components/DomainInput/DomainInput';
 import UploadBox from '../../components/UploadBox/UploadBox';
+import ScanLoader from '../../components/ScanLoader/ScanLoader';
 import { backendApi } from '../../api/backendApi';
 import { useAuth } from '../../context/AuthContext';
 import './NewScan.css';
@@ -77,6 +78,19 @@ export default function NewScan() {
   }, [repositoryOptions, selectedOrg]);
 
   const canLaunch = isFileMode ? !!uploadFile : isGitHubMode ? !!githubConnection?.connected && !!selectedOrg && !!selectedRepo && !!selectedBranch : targets.length > 0;
+  const launchLogs = useMemo(() => {
+    const stack = scannerStacks[activeType.mode] || scannerStacks.url;
+    const prefix = isFileMode
+      ? ['Preparing Source Upload', 'Validating Archive', 'Queuing Static Analysis']
+      : isGitHubMode
+        ? ['Validating Repository Access', 'Resolving Branch Metadata', 'Queuing Repository Analysis']
+        : ['Validating Target', 'Initializing Scan Engine', 'Queuing Attack Surface Discovery'];
+
+    return [...prefix, ...stack.map((scanner) => `Preparing ${scanner.label}`), 'Starting AI Risk Assessment'].map((label, index) => ({
+      label,
+      status: index < 2 ? 'completed' : index === 2 ? 'running' : 'pending',
+    }));
+  }, [activeType.mode, isFileMode, isGitHubMode]);
 
   useEffect(() => {
     if (!isGitHubMode) return;
@@ -192,6 +206,13 @@ export default function NewScan() {
 
   return (
     <div className="new-scan">
+      <ScanLoader
+        active={launching}
+        title="Starting Security Pipeline"
+        currentOperation={isFileMode ? 'Uploading Source for Analysis' : isGitHubMode ? 'Starting Repository Analysis' : 'Starting Vulnerability Scan'}
+        logs={launchLogs}
+        target={isFileMode ? uploadFile?.name : isGitHubMode ? `${selectedOrg}/${selectedRepo}` : targets[0]}
+      />
       <div className="new-scan-header animate-fade-up">
         <div>
           <span className="page-kicker">Asset intake</span>

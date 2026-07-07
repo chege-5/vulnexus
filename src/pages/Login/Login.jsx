@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, Lock, Mail, ArrowRight, Loader, Chrome, Github } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, ArrowRight, Loader, Chrome, Github, ShieldCheck, ScanSearch, FileCheck2, Check } from 'lucide-react';
 import logo from '../../assets/logo.png';
 import { useAuth } from '../../context/AuthContext';
 import { useTypingEffect } from '../../hooks/useApi';
@@ -12,20 +12,23 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [oauthLoading, setOauthLoading] = useState('');
 
   const { displayed, done } = useTypingEffect('Secure your digital infrastructure.', 45);
+  const emailInvalid = email.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     if (!email || !password) { setError('Please enter email and password'); return; }
+    if (emailInvalid) { setError('Please enter a valid email address'); return; }
 
     setLoading(true);
     try {
-      const session = await signIn(email, password);
+      const session = await signIn(email, password, { remember: rememberMe });
       // Route appropriately based on user role
       if (session.user.role === 'admin') {
         navigate('/admin');
@@ -54,6 +57,14 @@ export default function Login() {
     <div className="login-page">
       <div className="login-bg-gradient" />
       <div className="login-container">
+        <div className="auth-mobile-brand">
+          <img src={logo} alt="Vulnexus logo" />
+          <div>
+            <strong>Vulnexus</strong>
+            <span>Secure access</span>
+          </div>
+        </div>
+
         {/* Left — Branding */}
         <div className="login-branding">
           <div className="login-logo">
@@ -66,15 +77,15 @@ export default function Login() {
           </p>
           <div className="login-features">
             <div className="login-feature">
-              <div className="feature-dot" />
+              <ShieldCheck size={16} className="feature-icon" />
               <span>Real-time threat detection</span>
             </div>
             <div className="login-feature">
-              <div className="feature-dot" />
+              <ScanSearch size={16} className="feature-icon" />
               <span>Automated vulnerability scanning</span>
             </div>
             <div className="login-feature">
-              <div className="feature-dot" />
+              <FileCheck2 size={16} className="feature-icon" />
               <span>Compliance reporting</span>
             </div>
           </div>
@@ -88,18 +99,6 @@ export default function Login() {
 
             {error && <div className="login-error" role="alert">{error}</div>}
 
-            <div className="oauth-block">
-              <div className="oauth-divider"><span>Or continue with</span></div>
-              <div className="oauth-grid">
-                <button type="button" className="btn oauth-btn oauth-google" onClick={() => handleOAuth('google')} disabled={!!oauthLoading}>
-                  <Chrome size={16} /> {oauthLoading === 'google' ? 'Connecting...' : 'Google'}
-                </button>
-                <button type="button" className="btn oauth-btn oauth-github" onClick={() => handleOAuth('github')} disabled={!!oauthLoading}>
-                  <Github size={16} /> {oauthLoading === 'github' ? 'Connecting...' : 'GitHub'}
-                </button>
-              </div>
-            </div>
-
             <div className="form-group">
               <label className="form-label" htmlFor="email">Email</label>
               <div className="form-input-wrapper">
@@ -110,10 +109,11 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@company.com"
-                  className="form-input has-icon"
+                  className={`form-input has-icon${emailInvalid ? ' input-invalid' : ''}`}
                   autoComplete="email"
                 />
               </div>
+              {emailInvalid && <span className="field-hint danger">Enter a valid email address.</span>}
             </div>
 
             <div className="form-group">
@@ -142,15 +142,30 @@ export default function Login() {
 
             <div className="form-row">
               <label className="form-checkbox">
-                <input type="checkbox" />
+                <input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} />
+                <span className="checkbox-visual" aria-hidden="true">
+                  <Check size={12} />
+                </span>
                 <span>Remember me</span>
               </label>
-              <a href="#" className="form-link">Forgot password?</a>
+              <Link to="/forgot-password" className="form-link">Forgot password?</Link>
             </div>
 
             <button type="submit" className="btn btn-primary btn-lg login-btn" disabled={loading}>
-              {loading ? <Loader size={18} className="spin" /> : <>Sign In <ArrowRight size={16} /></>}
+              {loading ? <><Loader size={18} className="spin" /> Signing in...</> : <>Sign In <ArrowRight size={16} /></>}
             </button>
+
+            <div className="oauth-block oauth-block-after">
+              <div className="oauth-divider"><span>Or continue with</span></div>
+              <div className="oauth-grid">
+                <button type="button" className="btn oauth-btn oauth-google" onClick={() => handleOAuth('google')} disabled={!!oauthLoading}>
+                  <Chrome size={16} /> {oauthLoading === 'google' ? 'Connecting...' : 'Google'}
+                </button>
+                <button type="button" className="btn oauth-btn oauth-github" onClick={() => handleOAuth('github')} disabled={!!oauthLoading}>
+                  <Github size={16} /> {oauthLoading === 'github' ? 'Connecting...' : 'GitHub'}
+                </button>
+              </div>
+            </div>
 
             <p className="login-footer-text">
               Don't have an account? <Link to="/signup" className="form-link">Sign up</Link>

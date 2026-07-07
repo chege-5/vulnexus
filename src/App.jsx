@@ -6,6 +6,7 @@ import Header from './components/Header/Header';
 import Footer from './components/Footer/Footer';
 import BackgroundFX from './components/BackgroundFX/BackgroundFX';
 import IntroLoader from './components/IntroLoader/IntroLoader';
+import PageTransitionLoader from './components/PageTransitionLoader/PageTransitionLoader';
 import { SkeletonPage } from './components/SkeletonLoader/SkeletonLoader';
 import { publicRoutes } from './pages/Marketing/marketingContent';
 
@@ -14,6 +15,8 @@ const Landing = lazy(() => import('./pages/Landing/Landing'));
 const MarketingPage = lazy(() => import('./pages/Marketing/MarketingPage'));
 const Login = lazy(() => import('./pages/Login/Login'));
 const Signup = lazy(() => import('./pages/Signup/Signup'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword/ResetPassword'));
 const AuthCallback = lazy(() => import('./pages/AuthCallback/AuthCallback'));
 const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'));
 const NewScan = lazy(() => import('./pages/NewScan/NewScan'));
@@ -164,6 +167,22 @@ export default function App() {
           }
         />
         <Route
+          path="/forgot-password"
+          element={
+            <Suspense fallback={<SkeletonPage />}>
+              <ForgotPassword />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/reset-password"
+          element={
+            <Suspense fallback={<SkeletonPage />}>
+              <ResetPassword />
+            </Suspense>
+          }
+        />
+        <Route
           path="/auth/:provider/callback"
           element={
             <Suspense fallback={<SkeletonPage />}>
@@ -204,6 +223,7 @@ export default function App() {
         {/* Default redirect */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <PageTransitionLoader disabled={showIntro} />
       {showIntro && <IntroLoader onComplete={completeIntro} />}
     </>
   );

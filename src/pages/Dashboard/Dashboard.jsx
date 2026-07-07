@@ -1,9 +1,10 @@
-import { createElement } from 'react';
+import { createElement, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Shield, Scan, Bug, CheckCircle, TrendingUp, ArrowRight,
-  AlertTriangle, Activity, Globe, Server, BrainCircuit, FileText, ShieldCheck
+  AlertTriangle, Activity, Globe, Server, BrainCircuit, FileText, ShieldCheck, Briefcase, Target, X
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer, Legend
@@ -28,8 +29,26 @@ const CHART_COLORS = {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { user, updateUser } = useAuth();
   const { data: rawData, loading, error, refetch } = useApi(() => backendApi.getDashboard());
   const data = rawData ? normalizeDashboard(rawData) : null;
+  const onboardingSkippedKey = user?.id ? `vulnexus:onboarding-skipped:${user.id}` : '';
+  const [onboardingSkipped, setOnboardingSkipped] = useState(() => {
+    if (!user?.id) return false;
+    return localStorage.getItem(`vulnexus:onboarding-skipped:${user.id}`) === 'true';
+  });
+  const [onboarding, setOnboarding] = useState({
+    company: user?.company || '',
+    job_role: user?.job_role || '',
+    security_focus: user?.security_focus || '',
+  });
+  const [onboardingSaving, setOnboardingSaving] = useState(false);
+  const [onboardingError, setOnboardingError] = useState('');
+
+  const shouldShowOnboarding = useMemo(() => {
+    if (!user || onboardingSkipped) return false;
+    return !user.company || !user.job_role || !user.security_focus;
+  }, [user, onboardingSkipped]);
 
   // Hooks must be called unconditionally — before any early returns
   const totalScans = useAnimatedCounter(data?.totalScans);
@@ -43,6 +62,27 @@ export default function Dashboard() {
   if (error) return <ErrorState message={error} onRetry={refetch} />;
   if (!data) return null;
 
+  const saveOnboarding = async (event) => {
+    event.preventDefault();
+    setOnboardingError('');
+    setOnboardingSaving(true);
+    try {
+      const updated = await backendApi.updateMe(onboarding);
+      updateUser(updated);
+    } catch (err) {
+      setOnboardingError(err.message || 'Unable to save workspace details');
+    } finally {
+      setOnboardingSaving(false);
+    }
+  };
+
+  const skipOnboarding = () => {
+    if (onboardingSkippedKey) {
+      localStorage.setItem(onboardingSkippedKey, 'true');
+    }
+    setOnboardingSkipped(true);
+  };
+
   const vulnPieData = [
     { name: 'Critical', value: data.vulnerabilities.critical },
     { name: 'High', value: data.vulnerabilities.high },
@@ -52,6 +92,71 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard">
+      {shouldShowOnboarding && (
+        <div className="onboarding-backdrop" role="presentation">
+          <form className="onboarding-modal" onSubmit={saveOnboarding}>
+            <div className="onboarding-header">
+              <div>
+                <span className="page-kicker">Workspace setup</span>
+                <h2>Personalize Vulnexus</h2>
+              </div>
+              <button type="button" className="onboarding-close" onClick={skipOnboarding} aria-label="Skip personalization">
+                <X size={18} />
+              </button>
+            </div>
+            <p className="onboarding-copy">These details tune reports and dashboard context. You can skip this and update your profile later.</p>
+
+            {onboardingError && <div className="login-error" role="alert">{onboardingError}</div>}
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="onboarding-company">Company / Organization</label>
+              <div className="form-input-wrapper">
+                <Briefcase size={16} className="form-input-icon" />
+                <input id="onboarding-company" value={onboarding.company} onChange={(event) => setOnboarding((prev) => ({ ...prev, company: event.target.value }))} placeholder="e.g. Acme Corp" className="form-input has-icon" />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="onboarding-role">Job Role</label>
+              <div className="form-input-wrapper">
+                <Briefcase size={16} className="form-input-icon" />
+                <select id="onboarding-role" value={onboarding.job_role} onChange={(event) => setOnboarding((prev) => ({ ...prev, job_role: event.target.value }))} className="form-input has-icon select-input">
+                  <option value="">Select role</option>
+                  <option value="Developer">Developer</option>
+                  <option value="Security Analyst">Security Analyst</option>
+                  <option value="DevOps Engineer">DevOps Engineer</option>
+                  <option value="Security Auditor">Security Auditor</option>
+                  <option value="Product Manager">Product Manager</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="onboarding-focus">Security Focus</label>
+              <div className="form-input-wrapper">
+                <Target size={16} className="form-input-icon" />
+                <select id="onboarding-focus" value={onboarding.security_focus} onChange={(event) => setOnboarding((prev) => ({ ...prev, security_focus: event.target.value }))} className="form-input has-icon select-input">
+                  <option value="">Select focus</option>
+                  <option value="Cryptography">Cryptography & Encryption</option>
+                  <option value="Web Security">Web App Penetration Testing</option>
+                  <option value="API Security">REST/GraphQL API Audits</option>
+                  <option value="Infrastructure">Infrastructure & Cloud</option>
+                  <option value="Compliance">Security Compliance</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="onboarding-actions">
+              <button type="button" className="btn btn-secondary" onClick={skipOnboarding}>Skip for now</button>
+              <button type="submit" className="btn btn-primary" disabled={onboardingSaving}>
+                {onboardingSaving ? 'Saving...' : 'Save Details'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       <div className="command-hero animate-fade-up">
         <div className="command-hero-main">
           <span className="page-kicker">Security operations overview</span>
