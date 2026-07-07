@@ -1,0 +1,311 @@
+.intro-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(36, 119, 196, 0.16), transparent 28%),
+    radial-gradient(circle at 50% 54%, rgba(125, 180, 226, 0.08), transparent 44%),
+    #05070D;
+  color: #f8fbff;
+  pointer-events: none;
+  animation: introOverlayExit 520ms ease 3.66s forwards;
+  contain: layout paint style;
+}
+
+.intro-glow {
+  position: absolute;
+  width: min(68vw, 660px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(79, 156, 224, 0.18), rgba(79, 156, 224, 0.06) 35%, transparent 68%);
+  filter: blur(16px);
+  opacity: 0.8;
+  transform: translateZ(0);
+}
+
+.intro-particles-bg {
+  position: absolute;
+  inset: 0;
+  opacity: 0.42;
+}
+
+.intro-particles-bg span {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: rgba(125, 180, 226, 0.72);
+  box-shadow: 0 0 10px rgba(125, 180, 226, 0.6);
+  opacity: 0.35;
+  animation: introBgParticle 4s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -210ms);
+  transform: translate3d(0, 0, 0);
+}
+
+.intro-mark {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: clamp(18px, 3vw, 28px);
+  transform: translate3d(0, 0, 0);
+}
+
+.intro-logo-wrap {
+  position: relative;
+  width: clamp(82px, 12vw, 124px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transform: translate3d(0, 14px, 0) scale(0.94);
+  filter:
+    drop-shadow(0 0 16px rgba(125, 180, 226, 0.28))
+    drop-shadow(0 0 2px rgba(217, 183, 95, 0.42));
+  animation:
+    introLogoReveal 500ms cubic-bezier(0.22, 1, 0.36, 1) 1.88s forwards,
+    introMarkFracture 500ms ease 2.42s forwards,
+    introMarkCollapse 840ms cubic-bezier(0.34, 0.04, 0.25, 1) 2.94s forwards;
+  will-change: transform, opacity, filter;
+}
+
+.intro-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: brightness(1.34) saturate(0.92);
+}
+
+.intro-logo-glint {
+  position: absolute;
+  inset: 10%;
+  border-radius: 50%;
+  background:
+    linear-gradient(118deg, transparent 8%, rgba(255, 255, 255, 0.7) 18%, transparent 28%),
+    linear-gradient(28deg, transparent 64%, rgba(217, 183, 95, 0.5) 70%, transparent 78%),
+    radial-gradient(circle at 78% 68%, rgba(239, 68, 68, 0.22), transparent 18%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: introGlint 560ms ease 2s forwards;
+}
+
+.intro-word {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 9ch;
+  font-family: var(--font-mono);
+  font-size: clamp(2rem, 7vw, 4.75rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  text-shadow:
+    0 0 24px rgba(125, 180, 226, 0.24),
+    0 0 1px rgba(217, 183, 95, 0.5);
+  animation:
+    introMarkFracture 500ms ease 2.42s forwards,
+    introMarkCollapse 840ms cubic-bezier(0.34, 0.04, 0.25, 1) 2.94s forwards;
+  will-change: transform, opacity, filter;
+}
+
+.intro-type {
+  display: inline-block;
+  width: 0;
+  max-width: 8ch;
+  overflow: hidden;
+  white-space: nowrap;
+  background:
+    linear-gradient(90deg, #ffffff 0%, #e8f4ff 58%, #d9b75f 84%, #f1f7ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: introTyping 960ms steps(8, end) 300ms forwards;
+}
+
+.intro-cursor {
+  display: inline-block;
+  margin-left: 0.06em;
+  color: #f8fbff;
+  text-shadow: 0 0 18px rgba(125, 180, 226, 0.62);
+  animation: introCursorBlink 300ms steps(1, end) infinite;
+}
+
+.intro-cracks {
+  position: absolute;
+  inset: -14px -42px;
+  opacity: 0;
+  mix-blend-mode: screen;
+  animation: introCracksReveal 520ms ease 2.44s forwards, introCracksExit 680ms ease 3.06s forwards;
+}
+
+.intro-cracks span {
+  position: absolute;
+  width: var(--crack-width);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.85), rgba(125, 180, 226, 0.58), transparent);
+  transform: rotate(var(--crack-rotate)) scaleX(0);
+  transform-origin: left center;
+  animation: introCrackLine 470ms ease forwards;
+  animation-delay: calc(2.46s + var(--i) * 18ms);
+}
+
+.intro-collapse-particles {
+  position: absolute;
+  inset: -18px -72px -90px;
+  opacity: 1;
+}
+
+.intro-collapse-particles span {
+  position: absolute;
+  width: var(--particle-size);
+  height: var(--particle-size);
+  border-radius: 1px;
+  background: var(--particle-color);
+  box-shadow: 0 0 10px var(--particle-color);
+  opacity: 0;
+  transform: translate3d(0, 0, 0) scale(0.7);
+  animation: introParticleFall var(--particle-duration) cubic-bezier(0.18, 0.72, 0.24, 1) forwards;
+  animation-delay: calc(2.98s + var(--particle-delay));
+  will-change: transform, opacity;
+}
+
+@keyframes introTyping {
+  to { width: 8ch; }
+}
+
+@keyframes introCursorBlink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+@keyframes introLogoReveal {
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes introGlint {
+  0% { opacity: 0; transform: translate3d(-8%, -8%, 0); }
+  45% { opacity: 0.52; }
+  100% { opacity: 0.2; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes introMarkFracture {
+  0%, 100% {
+    filter:
+      drop-shadow(0 0 16px rgba(125, 180, 226, 0.28))
+      drop-shadow(0 0 2px rgba(217, 183, 95, 0.42));
+  }
+  45% {
+    filter:
+      drop-shadow(1px 0 0 rgba(239, 68, 68, 0.28))
+      drop-shadow(-1px 0 0 rgba(125, 180, 226, 0.34))
+      drop-shadow(0 0 18px rgba(125, 180, 226, 0.24));
+  }
+}
+
+@keyframes introCracksReveal {
+  to { opacity: 1; }
+}
+
+@keyframes introCracksExit {
+  to { opacity: 0; }
+}
+
+@keyframes introCrackLine {
+  0% { transform: rotate(var(--crack-rotate)) scaleX(0); opacity: 0; }
+  100% { transform: rotate(var(--crack-rotate)) scaleX(1); opacity: 1; }
+}
+
+@keyframes introMarkCollapse {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    clip-path: inset(0 0 0 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 34px, 0) scale(0.975);
+    clip-path: inset(62% 0 0 0);
+  }
+}
+
+@keyframes introParticleFall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -8px, 0) scale(0.6);
+  }
+  16% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--particle-x), var(--particle-y), 0) scale(0.18);
+  }
+}
+
+@keyframes introOverlayExit {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@keyframes introBgParticle {
+  0%, 100% {
+    opacity: 0.16;
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    opacity: 0.52;
+    transform: translate3d(8px, -12px, 0);
+  }
+}
+
+@media (max-width: 640px) {
+  .intro-loader {
+    background:
+      radial-gradient(circle at 50% 48%, rgba(36, 119, 196, 0.18), transparent 34%),
+      #05070D;
+  }
+
+  .intro-mark {
+    gap: 18px;
+  }
+
+  .intro-logo-wrap {
+    width: 84px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-loader {
+    animation: introOverlayExit 220ms ease 520ms forwards;
+  }
+
+  .intro-logo-wrap,
+  .intro-word,
+  .intro-type,
+  .intro-cursor,
+  .intro-logo-glint,
+  .intro-cracks,
+  .intro-cracks span,
+  .intro-collapse-particles span,
+  .intro-particles-bg span {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .intro-type {
+    width: 8ch;
+  }
+
+  .intro-logo-wrap {
+    opacity: 1;
+    transform: none;
+  }
+}

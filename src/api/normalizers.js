@@ -66,11 +66,18 @@ export function normalizeVulnerability(v) {
     cve: v.cve || v.cve_id || 'N/A',
     cvss: v.cvss ?? (v.ml_score != null ? v.ml_score / 10 : null),
     status: v.status || 'open',
+    assignedToId: v.assigned_to_id || null,
+    assignedToName: v.assigned_to_name || '',
     discovered: v.discovered
       ? new Date(v.discovered).toLocaleDateString()
       : '—',
     description: v.description || '',
     remediation: v.remediation || '',
+    owaspCategory: v.owasp_category || '',
+    nistControl: v.nist_control || '',
+    mitreTechnique: v.mitre_technique || '',
+    cweIds: v.cwe_ids || [],
+    knownExploit: !!v.known_exploit,
   };
 }
 
@@ -84,6 +91,8 @@ export function normalizeVulnerabilityDetail(v) {
     references: v.references || [],
     evidence: v.evidence || v.description || '',
     timeline: v.timeline || [],
+    comments: v.comments || [],
+    history: v.history || [],
   };
 }
 
@@ -99,12 +108,11 @@ export function countFindingsBySeverity(vulnerabilities) {
 export function buildProgressSteps(progress, status) {
   const stages = [
     { name: 'Queued', threshold: 5 },
-    { name: 'Target Analysis', threshold: 20 },
-    { name: 'Static / TLS Scan', threshold: 40 },
-    { name: 'Rule Engine', threshold: 55 },
-    { name: 'AI Risk Scoring', threshold: 70 },
-    { name: 'CVE Mapping', threshold: 85 },
-    { name: 'Report Generation', threshold: 100 },
+    { name: 'Scanner Execution', threshold: 40 },
+    { name: 'Finding Correlation', threshold: 70 },
+    { name: 'AI Risk Scoring', threshold: 80 },
+    { name: 'Intelligence Enrichment', threshold: 88 },
+    { name: 'Audit Report Generation', threshold: 100 },
   ];
 
   if (status === 'failed') {
@@ -213,6 +221,9 @@ export function normalizeScanResult(result) {
       name: v.rule_id,
       target: result.target,
       cve: v.cve_id,
+      cvss: v.cvss_score,
+      status: v.status,
+      assigned_to_id: v.assigned_to_id,
     })
   );
   const findings = countFindingsBySeverity(result.vulnerabilities || []);

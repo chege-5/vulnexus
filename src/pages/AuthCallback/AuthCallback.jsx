@@ -11,11 +11,11 @@ export default function AuthCallback() {
   const { completeOAuthCallback } = useAuth();
   const [error, setError] = useState('');
   const [status, setStatus] = useState('Completing secure authentication...');
+  const code = searchParams.get('code');
+  const missingCallbackParams = !provider || !code;
 
   useEffect(() => {
-    const code = searchParams.get('code');
-    if (!provider || !code) {
-      setError('Missing OAuth provider or authorization code.');
+    if (missingCallbackParams) {
       return;
     }
 
@@ -37,14 +37,16 @@ export default function AuthCallback() {
     return () => {
       cancelled = true;
     };
-  }, [provider, searchParams, completeOAuthCallback, navigate]);
+  }, [provider, code, missingCallbackParams, completeOAuthCallback, navigate]);
+
+  const visibleError = missingCallbackParams ? 'Missing OAuth provider or authorization code.' : error;
 
   return (
     <div className="auth-callback-page">
       <div className="auth-callback-card">
         <ShieldAlert size={40} />
         <h1>Completing secure authentication</h1>
-        {error ? <p className="auth-callback-error">{error}</p> : <p>{status} <Loader size={16} className="spin" /></p>}
+        {visibleError ? <p className="auth-callback-error">{visibleError}</p> : <p>{status} <Loader size={16} className="spin" /></p>}
       </div>
     </div>
   );

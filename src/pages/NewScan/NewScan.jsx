@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Scan, Globe, Shield, Zap, Server, FileSearch,
-  ChevronRight, Settings2, Loader, Upload, Github, RefreshCw, Link2
+  ChevronRight, Loader, Upload, Github, RefreshCw, Link2, Lock, Network, SearchCode, ListChecks, BrainCircuit
 } from 'lucide-react';
 import DomainInput from '../../components/DomainInput/DomainInput';
 import UploadBox from '../../components/UploadBox/UploadBox';
@@ -11,11 +11,35 @@ import { useAuth } from '../../context/AuthContext';
 import './NewScan.css';
 
 const scanTypes = [
-  { id: 'url', icon: Globe, name: 'URL / TLS Scan', desc: 'Scan a live website TLS configuration', time: '~2-5 min', mode: 'url' },
-  { id: 'file', icon: Upload, name: 'Source Code Scan', desc: 'Upload source code or ZIP archive', time: '~3-10 min', mode: 'file' },
-  { id: 'github', icon: Github, name: 'GitHub Repository Scan', desc: 'Scan a live repository directly from GitHub', time: '~3-12 min', mode: 'github' },
-  { id: 'ssl', icon: FileSearch, name: 'SSL/TLS Audit', desc: 'Certificate & encryption analysis', time: '~2-5 min', mode: 'url' },
+  { id: 'url', icon: Globe, name: 'Website Asset', desc: 'Live URL, DNS, TLS, headers, reputation, crawler, and compliance checks', time: '~2-5 min', mode: 'url' },
+  { id: 'file', icon: Upload, name: 'Source Upload', desc: 'Upload a source file or ZIP archive for secrets, dependencies, and compliance', time: '~3-10 min', mode: 'file' },
+  { id: 'github', icon: Github, name: 'GitHub Repository', desc: 'Scan a connected repository, branch, and optional folder directly from GitHub', time: '~3-12 min', mode: 'github' },
 ];
+
+const scannerStacks = {
+  url: [
+    { icon: Lock, label: 'TLS' },
+    { icon: Shield, label: 'Headers' },
+    { icon: Network, label: 'DNS' },
+    { icon: Server, label: 'Technology' },
+    { icon: Zap, label: 'Reputation' },
+    { icon: FileSearch, label: 'Web crawl' },
+    { icon: ListChecks, label: 'Compliance' },
+  ],
+  file: [
+    { icon: SearchCode, label: 'Secrets' },
+    { icon: Server, label: 'Dependencies' },
+    { icon: ListChecks, label: 'Compliance' },
+    { icon: BrainCircuit, label: 'AI risk' },
+  ],
+  github: [
+    { icon: Github, label: 'Repository' },
+    { icon: SearchCode, label: 'Secrets' },
+    { icon: Server, label: 'Dependencies' },
+    { icon: ListChecks, label: 'Compliance' },
+    { icon: BrainCircuit, label: 'AI risk' },
+  ],
+};
 
 export default function NewScan() {
   const navigate = useNavigate();
@@ -170,14 +194,24 @@ export default function NewScan() {
     <div className="new-scan">
       <div className="new-scan-header animate-fade-up">
         <div>
-          <h2 className="page-title">New Scan</h2>
-          <p className="page-desc">Configure and launch a security scan</p>
+          <span className="page-kicker">Asset intake</span>
+          <h2 className="page-title">Launch a security pipeline</h2>
+          <p className="page-desc">Choose the asset, define scope, then let the orchestrator run scanners, correlation, AI risk scoring, intelligence enrichment, and reporting.</p>
         </div>
       </div>
 
       <div className="new-scan-body">
+        <div className="scan-flow-strip animate-fade-up">
+          {['Choose asset', 'Configure scope', 'Run pipeline'].map((label, index) => (
+            <div key={label} className={`scan-flow-step ${index === 0 ? 'active' : ''}`}>
+              <span>{index + 1}</span>
+              {label}
+            </div>
+          ))}
+        </div>
+
         <div className="card animate-fade-up stagger-1">
-          <h3 className="card-title">Scan Type</h3>
+          <h3 className="card-title">Asset Type</h3>
           <div className="scan-type-grid">
             {scanTypes.map((type) => {
               const Icon = type.icon;
@@ -201,8 +235,9 @@ export default function NewScan() {
           </div>
         </div>
 
+        <div className="new-scan-two-col">
         <div className="card animate-fade-up stagger-2">
-          <h3 className="card-title">{isFileMode ? 'Upload Source' : 'Targets'}</h3>
+          <h3 className="card-title">{isFileMode ? 'Upload Source' : isGitHubMode ? 'Repository Scope' : 'Website Target'}</h3>
           {isGitHubMode ? (
             <div className="github-scan-panel">
               {!githubConnection?.connected ? (
@@ -284,8 +319,38 @@ export default function NewScan() {
           )}
         </div>
 
-        <div className="card animate-fade-up stagger-3">
-          <h3 className="card-title">Configuration</h3>
+        <div className="card animate-fade-up stagger-3 pipeline-preview-card">
+          <h3 className="card-title">Pipeline Preview</h3>
+          <div className="scanner-stack">
+            {(scannerStacks[activeType.mode] || scannerStacks.url).map((scanner) => {
+              const Icon = scanner.icon;
+              return (
+                <div key={scanner.label} className="scanner-chip">
+                  <Icon size={15} />
+                  <span>{scanner.label}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="pipeline-summary">
+            <div>
+              <span>Correlation</span>
+              <strong>Grouped evidence</strong>
+            </div>
+            <div>
+              <span>AI risk</span>
+              <strong>Prioritized score</strong>
+            </div>
+            <div>
+              <span>Output</span>
+              <strong>Audit-ready report</strong>
+            </div>
+          </div>
+        </div>
+        </div>
+
+        <div className="card animate-fade-up stagger-4">
+          <h3 className="card-title">Review</h3>
           <div className="config-grid">
             <div className="form-group">
               <label className="form-label">Scan Name (optional)</label>
@@ -299,7 +364,7 @@ export default function NewScan() {
           </div>
         </div>
 
-        <div className="new-scan-launch animate-fade-up stagger-4">
+        <div className="new-scan-launch animate-fade-up stagger-5">
           {launchError && (
             <div className="launch-error" role="alert">{launchError}</div>
           )}

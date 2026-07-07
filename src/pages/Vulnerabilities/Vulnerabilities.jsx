@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
   Bug, Search, ChevronDown, ExternalLink, AlertTriangle,
   AlertCircle, Info, ShieldAlert
@@ -23,7 +24,8 @@ export default function Vulnerabilities() {
     const raw = await backendApi.getVulnerabilities();
     return raw.map(normalizeVulnerability);
   });
-  const [search, setSearch] = useState('');
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get('q') || '');
   const [severityFilter, setSeverityFilter] = useState('all');
   const [sortField, setSortField] = useState('severity');
   const [sortDir, setSortDir] = useState('desc');

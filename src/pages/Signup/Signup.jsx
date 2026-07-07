@@ -63,8 +63,19 @@ export default function Signup() {
       return;
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (password.length < 10) {
+      setError('Password must be at least 10 characters');
+      return;
+    }
+
+    const passwordChecks = [
+      /[a-z]/.test(password),
+      /[A-Z]/.test(password),
+      /\d/.test(password),
+      /[^A-Za-z0-9]/.test(password),
+    ];
+    if (passwordChecks.filter(Boolean).length < 3) {
+      setError('Password must include at least three of: lowercase, uppercase, number, symbol');
       return;
     }
 

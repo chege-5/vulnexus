@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import logo from '../../assets/logo.png';
 import './Footer.css';
 
@@ -9,11 +10,11 @@ export default function Footer() {
         <span>&copy; 2026 Vulnexus. All rights reserved.</span>
       </div>
       <div className="footer-center">
-        <a href="#" className="footer-link">Privacy Policy</a>
+        <Link to="/legal/privacy-policy" className="footer-link">Privacy Policy</Link>
         <span className="footer-dot">·</span>
-        <a href="#" className="footer-link">Terms of Service</a>
+        <Link to="/legal/terms" className="footer-link">Terms of Service</Link>
         <span className="footer-dot">·</span>
-        <a href="#" className="footer-link">Contact</a>
+        <Link to="/company/contact" className="footer-link">Contact</Link>
       </div>
       <div className="footer-right">
         <span className="footer-status">

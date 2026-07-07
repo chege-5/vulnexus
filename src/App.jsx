@@ -1,14 +1,17 @@
-import { useState, Suspense, lazy } from 'react';
+import { useCallback, useEffect, useState, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Sidebar from './components/Sidebar/Sidebar';
 import Header from './components/Header/Header';
 import Footer from './components/Footer/Footer';
 import BackgroundFX from './components/BackgroundFX/BackgroundFX';
+import IntroLoader from './components/IntroLoader/IntroLoader';
 import { SkeletonPage } from './components/SkeletonLoader/SkeletonLoader';
+import { publicRoutes } from './pages/Marketing/marketingContent';
 
 /* Lazy-loaded pages */
 const Landing = lazy(() => import('./pages/Landing/Landing'));
+const MarketingPage = lazy(() => import('./pages/Marketing/MarketingPage'));
 const Login = lazy(() => import('./pages/Login/Login'));
 const Signup = lazy(() => import('./pages/Signup/Signup'));
 const AuthCallback = lazy(() => import('./pages/AuthCallback/AuthCallback'));
@@ -26,6 +29,16 @@ const Notifications = lazy(() => import('./pages/Notifications/Notifications'));
 const Help = lazy(() => import('./pages/Help/Help'));
 const SubscriptionPage = lazy(() => import('./pages/Subscription/SubscriptionPage'));
 const AdminPortal = lazy(() => import('./pages/Admin/AdminPortal'));
+
+const INTRO_STORAGE_KEY = 'vulnexus:intro-loader-seen';
+
+function shouldShowIntro() {
+  try {
+    return window.sessionStorage.getItem(INTRO_STORAGE_KEY) !== 'true';
+  } catch {
+    return true;
+  }
+}
 
 /* ─── Protected layout wrapper ─── */
 function AppLayout({ children }) {
@@ -104,6 +117,23 @@ function AdminRoute({ children }) {
 
 /* ─── Root App ─── */
 export default function App() {
+  const [showIntro, setShowIntro] = useState(shouldShowIntro);
+
+  useEffect(() => {
+    document.body.classList.toggle('intro-lock', showIntro);
+    return () => document.body.classList.remove('intro-lock');
+  }, [showIntro]);
+
+  const completeIntro = useCallback(() => {
+    try {
+      window.sessionStorage.setItem(INTRO_STORAGE_KEY, 'true');
+    } catch {
+      // Storage can be unavailable in private or embedded contexts.
+    }
+
+    setShowIntro(false);
+  }, []);
+
   return (
     <>
       <BackgroundFX />
@@ -141,6 +171,17 @@ export default function App() {
             </Suspense>
           }
         />
+        {publicRoutes.map(({ path, pageKey }) => (
+          <Route
+            key={path}
+            path={path}
+            element={
+              <Suspense fallback={<SkeletonPage />}>
+                <MarketingPage pageKey={pageKey} />
+              </Suspense>
+            }
+          />
+        ))}
 
         {/* Protected */}
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -163,6 +204,7 @@ export default function App() {
         {/* Default redirect */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      {showIntro && <IntroLoader onComplete={completeIntro} />}
     </>
   );
 }

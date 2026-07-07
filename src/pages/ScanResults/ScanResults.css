@@ -80,8 +80,103 @@
   color: var(--text-tertiary);
 }
 
+.results-intel-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+
+.intel-panel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  background: rgba(13, 26, 43, 0.88);
+}
+
+.intel-panel-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-md);
+  background: rgba(125, 180, 226, 0.12);
+  color: var(--brand-primary);
+  flex: 0 0 auto;
+}
+
+.intel-panel span,
+.focus-facts span,
+.focus-header {
+  color: var(--text-tertiary);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.intel-panel strong {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--font-size-sm);
+}
+
+.results-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--space-lg);
+}
+
+.results-table-pane,
+.finding-focus-pane {
+  min-width: 0;
+}
+
+.finding-focus-pane {
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, rgba(16, 32, 51, 0.96), rgba(11, 25, 42, 0.96));
+}
+
+.focus-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--brand-accent);
+}
+
+.finding-focus-pane h3 {
+  font-size: var(--font-size-lg);
+}
+
+.finding-focus-pane p {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.focus-facts {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.focus-facts div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border-secondary);
+}
+
 @media (max-width: 1024px) {
-  .results-summary {
+  .results-summary,
+  .results-intel-grid,
+  .results-workspace {
     grid-template-columns: 1fr;
   }
 }

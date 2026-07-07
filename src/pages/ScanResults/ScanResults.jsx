@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Download, Share2 } from 'lucide-react';
+import { Download, Share2, BrainCircuit, ShieldCheck, AlertTriangle, FileText } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
 import { backendApi } from '../../api/backendApi';
 import { normalizeScanResult } from '../../api/normalizers';
@@ -15,12 +17,18 @@ import './ScanResults.css';
 export default function ScanResults() {
   const { scanId } = useParams();
   const navigate = useNavigate();
+  const [actionMessage, setActionMessage] = useState('');
 
   const { data: scan, loading, error, refetch } = useApi(async () => {
     if (!scanId) throw new Error('Scan ID is required');
     const result = await backendApi.getScanResult(scanId);
     return normalizeScanResult(result);
   }, [scanId]);
+
+  const priorityFinding = useMemo(
+    () => scan?.vulnerabilities?.find((item) => ['critical', 'high'].includes(item.severity)) || scan?.vulnerabilities?.[0],
+    [scan],
+  );
 
   if (!scanId) {
     return (
@@ -47,7 +55,7 @@ export default function ScanResults() {
     try {
       await backendApi.downloadReport(scanId);
     } catch (err) {
-      alert(err.message || 'Report not available yet');
+      setActionMessage(err.message || 'Report not available yet');
     }
   };
 
@@ -55,6 +63,7 @@ export default function ScanResults() {
     <div className="scan-results">
       <div className="scan-results-header animate-fade-up">
         <div>
+          <span className="page-kicker">Investigation workspace</span>
           <h2 className="page-title">Scan Results</h2>
           <p className="page-desc">
             Target: <span className="mono">{scan.target}</span> · {scan.type} · {scan.duration}
@@ -69,6 +78,7 @@ export default function ScanResults() {
           </button>
         </div>
       </div>
+      {actionMessage && <div className="launch-error" role="alert">{actionMessage}</div>}
 
       <div className="results-summary">
         <div className="card results-risk animate-fade-up stagger-1">
@@ -111,8 +121,57 @@ export default function ScanResults() {
         </div>
       </div>
 
-      <div className="animate-fade-up stagger-4">
-        <VulnerabilityTable vulnerabilities={scan.vulnerabilities} />
+      <div className="results-intel-grid animate-fade-up stagger-4">
+        <div className="intel-panel">
+          <div className="intel-panel-icon"><BrainCircuit size={18} /></div>
+          <div>
+            <span>AI risk context</span>
+            <strong>{scan.riskScore >= 75 ? 'Immediate remediation recommended' : scan.riskScore >= 45 ? 'Review prioritized findings' : 'Monitor and harden'}</strong>
+          </div>
+        </div>
+        <div className="intel-panel">
+          <div className="intel-panel-icon"><ShieldCheck size={18} /></div>
+          <div>
+            <span>Compliance mapping</span>
+            <strong>OWASP, CWE, NIST-ready evidence</strong>
+          </div>
+        </div>
+        <div className="intel-panel">
+          <div className="intel-panel-icon"><FileText size={18} /></div>
+          <div>
+            <span>Audit artifact</span>
+            <strong>PDF, HTML, and JSON export</strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="results-workspace animate-fade-up stagger-5">
+        <div className="results-table-pane">
+          <VulnerabilityTable vulnerabilities={scan.vulnerabilities} />
+        </div>
+        <aside className="finding-focus-pane">
+          <div className="focus-header">
+            <AlertTriangle size={18} />
+            <span>Priority Finding</span>
+          </div>
+          {priorityFinding ? (
+            <>
+              <h3>{priorityFinding.name}</h3>
+              <span className={`badge badge-${priorityFinding.severity}`}>{priorityFinding.severity}</span>
+              <p>{priorityFinding.description || 'No description available.'}</p>
+              <div className="focus-facts">
+                <div><span>CVE</span><strong>{priorityFinding.cve || 'N/A'}</strong></div>
+                <div><span>CVSS</span><strong>{priorityFinding.cvss ?? 'N/A'}</strong></div>
+                <div><span>Status</span><strong>{priorityFinding.status}</strong></div>
+              </div>
+              <button className="btn btn-primary btn-sm" onClick={() => navigate(`/vulnerability/${priorityFinding.id}`)}>
+                Open Case File
+              </button>
+            </>
+          ) : (
+            <p>No findings were returned for this scan.</p>
+          )}
+        </aside>
       </div>
     </div>
   );

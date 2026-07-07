@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 import {
   Sun, Moon, Bell, Search, ChevronDown, LogOut, Settings, User,
   Menu, X
@@ -29,6 +29,7 @@ export default function Header({ onToggleSidebar, sidebarOpen }) {
   const { user, signOut } = useAuth();
   const { notifications, unreadCount, markAllAsRead } = useNotifications();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,6 +51,13 @@ export default function Header({ onToggleSidebar, sidebarOpen }) {
 
   const currentPage = pageTitles[location.pathname] || 'Dashboard';
   const pathParts = location.pathname.split('/').filter(Boolean);
+  const submitSearch = (event) => {
+    if (event.key !== 'Enter' || !searchQuery.trim()) return;
+    const q = encodeURIComponent(searchQuery.trim());
+    const target = /scan|history|report/i.test(searchQuery) ? `/history?q=${q}` : `/vulnerability?q=${q}`;
+    navigate(target);
+    setSearchOpen(false);
+  };
 
   return (
     <header className="header" role="banner" aria-label="Main header">
@@ -92,6 +100,7 @@ export default function Header({ onToggleSidebar, sidebarOpen }) {
               placeholder="Search scans, vulnerabilities..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={submitSearch}
               autoFocus
               aria-label="Search"
             />
