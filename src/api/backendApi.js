@@ -1,6 +1,27 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1').replace(/\/$/, '');
 const TOKEN_KEY = 'vulnexus_access_token';
+const REFRESH_TOKEN_KEY = 'vulnexus_refresh_token';
 const USER_KEY = 'vulnexus_user';
+const REMEMBER_UNTIL_KEY = 'vulnexus_remember_until';
+const REMEMBER_DURATION_MS = 2 * 24 * 60 * 60 * 1000;
+
+function getStorageToken(key) {
+  return localStorage.getItem(key) || sessionStorage.getItem(key);
+}
+
+function isRememberExpired() {
+  const raw = localStorage.getItem(REMEMBER_UNTIL_KEY);
+  return !!raw && Number(raw) < Date.now();
+}
+
+function clearStoredSession() {
+  [localStorage, sessionStorage].forEach((storage) => {
+    storage.removeItem(TOKEN_KEY);
+    storage.removeItem(REFRESH_TOKEN_KEY);
+    storage.removeItem(USER_KEY);
+    storage.removeItem(REMEMBER_UNTIL_KEY);
+  });
+}
 
 class ApiError extends Error {
   constructor(message, status) {
@@ -10,14 +31,27 @@ class ApiError extends Error {
 }
 
 async function request(path, options = {}) {
-  const token = localStorage.getItem(TOKEN_KEY);
+  if (isRememberExpired()) {
+    clearStoredSession();
+  }
+
+  const token = getStorageToken(TOKEN_KEY);
   const headers = {
     ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
 
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+  let response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+  if (response.status === 401 && token && !options.skipRefresh) {
+    const refreshedToken = await refreshSession();
+    if (refreshedToken) {
+      response = await fetch(`${API_BASE_URL}${path}`, {
+        ...options,
+        headers: { ...headers, Authorization: `Bearer ${refreshedToken}` },
+      });
+    }
+  }
   const contentType = response.headers.get('content-type') || '';
   const payload = contentType.includes('application/json') ? await response.json() : await response.text();
 
@@ -29,6 +63,25 @@ async function request(path, options = {}) {
   }
 
   return payload;
+}
+
+async function refreshSession() {
+  const refreshToken = getStorageToken(REFRESH_TOKEN_KEY);
+  if (!refreshToken || isRememberExpired()) return null;
+
+  const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+  if (!response.ok) return null;
+
+  const data = await response.json();
+  authStorage.setSession(data.access_token, data.user, {
+    refreshToken: data.refresh_token,
+    remember: localStorage.getItem(REMEMBER_UNTIL_KEY) != null,
+  });
+  return data.access_token;
 }
 
 function downloadBlob(blob, filename) {
@@ -43,13 +96,30 @@ function downloadBlob(blob, filename) {
 }
 
 export const authStorage = {
-  getToken: () => localStorage.getItem(TOKEN_KEY),
-  setSession(token, user) {
-    localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  getToken: () => {
+    if (isRememberExpired()) {
+      clearStoredSession();
+      return null;
+    }
+    return getStorageToken(TOKEN_KEY);
+  },
+  getRefreshToken: () => getStorageToken(REFRESH_TOKEN_KEY),
+  setSession(token, user, options = {}) {
+    const { remember = false, refreshToken = '' } = options;
+    const storage = remember ? localStorage : sessionStorage;
+
+    clearStoredSession();
+    storage.setItem(TOKEN_KEY, token);
+    storage.setItem(USER_KEY, JSON.stringify(user));
+    if (refreshToken) storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    if (remember) storage.setItem(REMEMBER_UNTIL_KEY, String(Date.now() + REMEMBER_DURATION_MS));
   },
   getUser() {
-    const raw = localStorage.getItem(USER_KEY);
+    if (isRememberExpired()) {
+      clearStoredSession();
+      return null;
+    }
+    const raw = getStorageToken(USER_KEY);
     if (!raw) return null;
     try {
       return JSON.parse(raw);
@@ -58,8 +128,7 @@ export const authStorage = {
     }
   },
   clear() {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
+    clearStoredSession();
   },
 };
 
@@ -85,7 +154,7 @@ export const backendApi = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
-    return { token: data.access_token, user: data.user };
+    return { token: data.access_token, refreshToken: data.refresh_token, user: data.user };
   },
 
   async register(email, password, profileDetails) {
@@ -93,7 +162,7 @@ export const backendApi = {
       method: 'POST',
       body: JSON.stringify({ email, password, ...profileDetails }),
     });
-    return { token: data.access_token, user: data.user };
+    return { token: data.access_token, refreshToken: data.refresh_token, user: data.user };
   },
 
   async getGithubConnection() {

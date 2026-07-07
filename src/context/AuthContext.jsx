@@ -8,21 +8,24 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => authStorage.getToken());
   const loading = false;
 
-  const completeSession = (session) => {
-    authStorage.setSession(session.token, session.user);
+  const completeSession = (session, options = {}) => {
+    authStorage.setSession(session.token, session.user, {
+      remember: options.remember,
+      refreshToken: session.refreshToken,
+    });
     setUser(session.user);
     setToken(session.token);
     return session;
   };
 
-  const signIn = async (email, password) => {
+  const signIn = async (email, password, options = {}) => {
     const session = await backendApi.login(email, password);
-    return completeSession(session);
+    return completeSession(session, options);
   };
 
-  const signUp = async (email, password, profileDetails) => {
+  const signUp = async (email, password, profileDetails, options = {}) => {
     const session = await backendApi.register(email, password, profileDetails);
-    return completeSession(session);
+    return completeSession(session, options);
   };
 
   const beginOAuth = async (provider, flow = 'login') => {
@@ -43,7 +46,10 @@ export function AuthProvider({ children }) {
 
   const updateUser = (updatedFields) => {
     const merged = { ...user, ...updatedFields };
-    authStorage.setSession(token, merged);
+    authStorage.setSession(token, merged, {
+      refreshToken: authStorage.getRefreshToken(),
+      remember: !!localStorage.getItem('vulnexus_remember_until'),
+    });
     setUser(merged);
   };
 

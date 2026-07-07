@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Activity, Globe, Clock, ArrowRight, AlertTriangle, Loader, Shield, Lock, Network, SearchCode, ListChecks, BrainCircuit } from 'lucide-react';
 import ScanProgressSteps from '../../components/ScanProgress/ScanProgress';
+import ScanLoader from '../../components/ScanLoader/ScanLoader';
 import { backendApi } from '../../api/backendApi';
 import { buildProgressSteps, formatScanType } from '../../api/normalizers';
 import ErrorState from '../../components/ErrorState/ErrorState';
@@ -20,6 +21,33 @@ export default function ScanProgressPage() {
   const [resultPreview, setResultPreview] = useState(null);
   const [error, setError] = useState('');
   const [elapsed, setElapsed] = useState(0);
+  const [showCompletion, setShowCompletion] = useState(false);
+  const completionTimer = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (completionTimer.current) window.clearTimeout(completionTimer.current);
+    };
+  }, []);
+
+  const completeScan = useCallback(async () => {
+    if (completionTimer.current) return;
+
+    setShowCompletion(true);
+    try {
+      const result = await backendApi.getScanResult(scanId);
+      setResultPreview(result);
+    } catch {
+      // Result polling can complete a beat later; the results page will fetch again.
+    }
+
+    completionTimer.current = window.setTimeout(() => {
+      navigate(`/scan/results/${scanId}`, {
+        replace: true,
+        state: { target, scanType },
+      });
+    }, 950);
+  }, [navigate, scanId, scanType, target]);
 
   useEffect(() => {
     if (!scanId) return undefined;
@@ -37,7 +65,7 @@ export default function ScanProgressPage() {
           const payload = JSON.parse(event.data);
           setStatusData((prev) => ({ ...(prev || {}), ...payload }));
           if (payload.status === 'completed') {
-            navigate(`/scan/results/${scanId}`, { replace: true, state: { target, scanType } });
+            completeScan();
           }
         } catch {
           // Ignore malformed websocket payloads; polling remains as fallback.
@@ -49,7 +77,7 @@ export default function ScanProgressPage() {
     return () => {
       if (socket && socket.readyState < 2) socket.close();
     };
-  }, [scanId, navigate, target, scanType]);
+  }, [scanId, completeScan]);
 
   useEffect(() => {
     if (!scanId) return undefined;
@@ -64,14 +92,7 @@ export default function ScanProgressPage() {
         setError('');
 
         if (status.status === 'completed') {
-          const result = await backendApi.getScanResult(scanId);
-          if (!cancelled) {
-            setResultPreview(result);
-            navigate(`/scan/results/${scanId}`, {
-              replace: true,
-              state: { target, scanType },
-            });
-          }
+          if (!cancelled) completeScan();
         } else if (status.status === 'failed') {
           setError('Scan failed. Please try again from New Scan.');
         }
@@ -86,7 +107,7 @@ export default function ScanProgressPage() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [scanId, navigate, target, scanType]);
+  }, [scanId, completeScan]);
 
   const progress = statusData?.progress ?? 0;
   const status = statusData?.status ?? 'queued';
@@ -103,6 +124,30 @@ export default function ScanProgressPage() {
   const eta = progress > 0 && progress < 100
     ? Math.round(((100 - progress) / progress) * elapsed)
     : null;
+
+  const scanLoaderLogs = useMemo(() => {
+    const backendLogs = statusData?.logs || statusData?.activity_log || statusData?.events;
+    if (Array.isArray(backendLogs) && backendLogs.length) {
+      return backendLogs.map((entry) => (
+        typeof entry === 'string'
+          ? { label: entry, status: 'completed' }
+          : {
+            label: entry.message || entry.label || entry.name || entry.step,
+            status: entry.status || 'completed',
+          }
+      ));
+    }
+
+    return steps.map((step) => ({ label: step.name, status: step.status }));
+  }, [statusData, steps]);
+
+  const runningStep = steps.find((step) => step.status === 'running');
+  const completedStepCount = showCompletion
+    ? steps.length
+    : steps.filter((step) => step.status === 'completed').length;
+  const backendCompletedTasks = statusData?.completed_tasks ?? statusData?.completedTasks ?? statusData?.tasks_completed;
+  const backendTotalTasks = statusData?.total_tasks ?? statusData?.totalTasks ?? statusData?.task_count;
+  const scanLoaderCurrentOperation = statusMessage || statusData?.current_step || statusData?.current_operation || runningStep?.name || 'Coordinating security analysis';
 
   const modulesByType = {
     url: [
@@ -149,6 +194,17 @@ export default function ScanProgressPage() {
 
   return (
     <div className="scan-progress-page">
+      <ScanLoader
+        active={!['failed', 'canceled'].includes(status)}
+        complete={showCompletion || status === 'completed'}
+        progress={showCompletion ? 100 : progress}
+        currentOperation={scanLoaderCurrentOperation}
+        completedTasks={backendCompletedTasks ?? completedStepCount}
+        totalTasks={backendTotalTasks ?? steps.length}
+        estimatedSeconds={eta}
+        logs={scanLoaderLogs}
+        target={target}
+      />
       <div className="scan-progress-header animate-fade-up">
         <div>
           <span className="page-kicker">Pipeline monitor</span>
