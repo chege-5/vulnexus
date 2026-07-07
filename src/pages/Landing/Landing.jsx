@@ -1,188 +1,359 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Shield, Sun, Moon, ArrowRight, Zap, Globe as GlobeIcon, Lock,
-  BarChart3, Scan, Users, ChevronRight, Check, Star, Activity,
-  ShieldCheck, Eye, Server, Wifi
+  Activity,
+  AlertTriangle,
+  ArrowRight,
+  BarChart3,
+  Check,
+  CheckCircle2,
+  Code2,
+  Database,
+  Download,
+  Eye,
+  FileText,
+  Fingerprint,
+  GitBranch,
+  Globe as GlobeIcon,
+  Lock,
+  Moon,
+  Network,
+  Radar,
+  Scan,
+  Server,
+  Shield,
+  ShieldCheck,
+  Sun,
+  Terminal,
+  Users,
+  Zap,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAnimatedCounter, useTypingEffect, useInView } from '../../hooks/useApi';
-import { LoadingStage } from '../../components/SkeletonLoader/SkeletonLoader';
 import logo from '../../assets/logo.png';
 import './Landing.css';
 
 const Globe = lazy(() => import('../../components/Globe/Globe'));
 
-/* ─── How Step (needs its own component to legally call useInView) ─── */
-const howStepsData = [
-  { step: '01', title: 'Configure Targets', desc: 'Add domains, IPs, or upload asset lists to define your scan perimeter.', icon: Wifi },
-  { step: '02', title: 'Launch Scan', desc: 'Choose scan types and launch — our engine does the rest in parallel.', icon: Scan },
-  { step: '03', title: 'Analyze Results', desc: 'Review prioritized findings with CVSS scores and remediation guides.', icon: BarChart3 },
-  { step: '04', title: 'Remediate & Monitor', desc: 'Apply fixes, verify patches, and set up continuous monitoring.', icon: ShieldCheck },
-];
-
-function HowStep({ item, index }) {
-  const Icon = item.icon;
-  const [ref, inView] = useInView();
-  return (
-    <div
-      ref={ref}
-      className={`how-step ${inView ? 'animate-fade-up' : 'pre-animate'}`}
-      style={{ animationDelay: `${index * 120}ms` }}
-    >
-      <div className="how-step-number">{item.step}</div>
-      <div className="how-step-icon"><Icon size={24} /></div>
-      <h3>{item.title}</h3>
-      <p>{item.desc}</p>
-    </div>
-  );
-}
-
-/* ─── Testimonial Card (needs its own component to legally call useInView) ─── */
-function TestimonialCard({ t, index }) {
-  const [ref, inView] = useInView();
-  return (
-    <div
-      ref={ref}
-      className={`testimonial-card ${inView ? 'animate-fade-up' : 'pre-animate'}`}
-      style={{ animationDelay: `${index * 120}ms` }}
-    >
-      <div className="testimonial-stars">
-        {[...Array(t.rating)].map((_, j) => <Star key={j} size={14} fill="#FACC15" color="#FACC15" />)}
-      </div>
-      <p className="testimonial-text">"{t.text}"</p>
-      <div className="testimonial-author">
-        <div className="testimonial-avatar">{t.name[0]}</div>
-        <div>
-          <div className="testimonial-name">{t.name}</div>
-          <div className="testimonial-role">{t.role}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─── Stats data ─── */
 const heroStats = [
-  { label: 'Scans Completed', value: 284750, icon: Scan, color: 'var(--brand-primary)' },
-  { label: 'Threats Blocked', value: 19834, icon: ShieldCheck, color: 'var(--severity-critical)' },
-  { label: 'Active Monitors', value: 12458, icon: Activity, color: 'var(--severity-low)' },
-  { label: 'Global Endpoints', value: 3672, icon: Server, color: 'var(--severity-medium)' },
+  { label: 'Scan modules', value: 12, icon: Radar, color: 'var(--brand-primary)', suffix: '+' },
+  { label: 'Signal sources', value: 18, icon: Database, color: 'var(--severity-info)', suffix: '+' },
+  { label: 'Risk factors', value: 42, icon: BarChart3, color: 'var(--severity-medium)', suffix: '' },
+  { label: 'Report formats', value: 4, icon: FileText, color: 'var(--severity-low)', suffix: '' },
 ];
 
-/* ─── Features ─── */
+const scanPipeline = [
+  { label: 'DNS', status: 'done' },
+  { label: 'Headers', status: 'done' },
+  { label: 'TLS', status: 'done' },
+  { label: 'Repos', status: 'active' },
+  { label: 'CVEs', status: 'pending' },
+  { label: 'Risk score', status: 'pending' },
+];
+
+const surfaceAreas = [
+  { icon: GlobeIcon, title: 'Domains', desc: 'DNS records, exposed hosts, security headers, and web surface checks.' },
+  { icon: Server, title: 'IPs and services', desc: 'Open service context, reputation signals, and perimeter exposure.' },
+  { icon: GitBranch, title: 'GitHub repos', desc: 'Repository posture, leaked secrets, dependency hints, and code risk.' },
+  { icon: Code2, title: 'Dependencies', desc: 'Known vulnerable packages mapped to CVE and remediation context.' },
+  { icon: Lock, title: 'TLS posture', desc: 'Certificate, protocol, expiry, issuer, and configuration checks.' },
+  { icon: Shield, title: 'Compliance evidence', desc: 'Exportable findings for audit trails, owners, and verification work.' },
+];
+
 const features = [
   {
     icon: Scan,
-    title: 'Deep Vulnerability Scanning',
-    desc: 'Comprehensive multi-layered scans covering OWASP Top 10, CVEs, misconfigurations, and zero-day vectors across your entire attack surface.',
-    color: '#3B82F6',
-  },
-  {
-    icon: GlobeIcon,
-    title: 'Global Threat Intelligence',
-    desc: 'Real-time threat feeds from 50+ sources worldwide, correlating data across geographies to identify emerging attack patterns before they reach you.',
-    color: '#8B5CF6',
+    title: 'Unified vulnerability scanning',
+    desc: 'Scan domains, repositories, dependencies, headers, TLS, DNS, reputation, and exposed services from one workspace.',
+    color: '#7DB4E2',
   },
   {
     icon: BarChart3,
-    title: 'Advanced Analytics & Reports',
-    desc: 'Executive-ready dashboards, trend analysis, and compliance reports with CVSS scoring, risk matrices, and remediation prioritization.',
+    title: 'Prioritized risk scoring',
+    desc: 'Blend severity, exploitability, asset context, and evidence into a queue your team can act on first.',
+    color: '#FACC15',
+  },
+  {
+    icon: FileText,
+    title: 'Evidence-ready reports',
+    desc: 'Turn findings into clear remediation reports with affected assets, severity, owner status, and verification notes.',
     color: '#22C55E',
   },
   {
-    icon: Lock,
-    title: 'Automated Remediation',
-    desc: 'One-click fix suggestions, automated patching workflows, and integration with CI/CD pipelines for continuous security enforcement.',
-    color: '#FB923C',
-  },
-  {
     icon: Users,
-    title: 'Team Collaboration',
-    desc: 'Role-based access control, shared workspaces, assignment workflows, and real-time notifications to keep your security team aligned.',
+    title: 'Team remediation flow',
+    desc: 'Move from detection to assignment, status tracking, and verification without losing the original scan evidence.',
     color: '#EC4899',
   },
+];
+
+const workflowSteps = [
+  { step: '01', title: 'Detect', desc: 'Ingest targets and run focused modules across the exposed attack surface.', icon: Radar },
+  { step: '02', title: 'Prioritize', desc: 'Group noisy findings into a ranked queue by severity, context, and confidence.', icon: BarChart3 },
+  { step: '03', title: 'Assign', desc: 'Route fixes to owners with the evidence needed to reproduce and resolve.', icon: Users },
+  { step: '04', title: 'Verify', desc: 'Rescan fixed assets and keep an audit trail of what changed.', icon: ShieldCheck },
+];
+
+const reportFindings = [
+  { severity: 'Critical', title: 'Public admin route exposed', asset: 'portal.vulnexus.dev', score: '9.4' },
+  { severity: 'High', title: 'TLS certificate expires soon', asset: 'api.vulnexus.dev', score: '7.8' },
+  { severity: 'Medium', title: 'Security header missing', asset: 'app.vulnexus.dev', score: '5.6' },
+];
+
+const roleCards = [
+  { title: 'Founders', desc: 'Know what is exposed before customers, auditors, or attackers ask.', icon: Fingerprint },
+  { title: 'Developers', desc: 'Fix the issues that matter with concrete evidence and remediation context.', icon: Code2 },
+  { title: 'Security teams', desc: 'Track risk across assets, owners, reports, and repeat scans.', icon: ShieldCheck },
+  { title: 'Auditors', desc: 'Export evidence that explains what was found, fixed, and verified.', icon: FileText },
+];
+
+const proofItems = [
+  'Maps findings to CVSS, OWASP, CVE, and remediation context',
+  'Built for internal reviews, continuous monitoring, and audit evidence',
+  'Designed for teams that need fewer noisy alerts and better decisions',
+];
+
+const landingFooterGroups = [
   {
-    icon: Zap,
-    title: 'Lightning-Fast Performance',
-    desc: 'Distributed scanning engine processes thousands of targets per minute with intelligent queuing and resource optimization.',
-    color: '#FACC15',
+    title: 'Product',
+    links: [
+      { label: 'Features', to: '/platform/features' },
+      { label: 'Usage', to: '/platform/usage' },
+      { label: 'Dashboard', to: '/platform/dashboard' },
+      { label: 'AI Engine', to: '/platform/ai-engine' },
+      { label: 'Pricing', to: '/platform/pricing' },
+    ],
+  },
+  {
+    title: 'Solutions',
+    links: [
+      { label: 'Developers', to: '/solutions/developers' },
+      { label: 'Security Teams', to: '/solutions/security-teams' },
+      { label: 'Enterprises', to: '/solutions/enterprises' },
+      { label: 'Universities', to: '/solutions/universities' },
+    ],
+  },
+  {
+    title: 'Resources',
+    links: [
+      { label: 'Documentation', to: '/resources/documentation' },
+      { label: 'Help Center', to: '/support/help-center' },
+      { label: 'FAQ', to: '/support/faq' },
+      { label: 'Status', to: '/support/status' },
+      { label: 'Testimonials', to: '/customers/testimonials' },
+    ],
+  },
+  {
+    title: 'Company',
+    links: [
+      { label: 'About', to: '/company/about' },
+      { label: 'Locations', to: '/company/locations' },
+      { label: 'Contact', to: '/company/contact' },
+      { label: 'Partners', to: '/company/partners' },
+      { label: 'Careers', to: '/company/careers' },
+    ],
+  },
+  {
+    title: 'Legal',
+    links: [
+      { label: 'Terms', to: '/legal/terms' },
+      { label: 'Privacy Policy', to: '/legal/privacy-policy' },
+      { label: 'Cookie Policy', to: '/legal/cookie-policy' },
+      { label: 'Responsible Disclosure', to: '/legal/responsible-disclosure' },
+      { label: 'Compliance', to: '/legal/compliance' },
+    ],
   },
 ];
 
-/* ─── Trusted by logos (simulated) ─── */
-const trustedBy = ['TechCorp', 'SecureNet', 'CloudGuard', 'DataShield', 'CyberVault', 'NetWatch'];
-
-/* ─── Testimonial ─── */
-const testimonials = [
-  { name: 'Sarah Chen', role: 'CISO, TechCorp', text: 'Vulnexus reduced our mean time to detect by 73%. The global threat intelligence is unmatched.', rating: 5 },
-  { name: 'James Miller', role: 'VP Engineering, SecureNet', text: 'The automated remediation alone saved us 200+ engineering hours per quarter. Essential tool for any security team.', rating: 5 },
-  { name: 'Priya Sharma', role: 'Security Lead, CloudGuard', text: 'Best-in-class vulnerability scanning with an incredibly intuitive interface. Our team adopted it in days.', rating: 5 },
-];
-
-/* ─── Stat Counter Component ─── */
-function StatCounter({ value, label, icon, color, delay = 0 }) {
-  const IconComponent = icon;
+function StatCounter({ value, label, icon, color, suffix = '', delay = 0 }) {
+  const Icon = icon;
   const [ref, inView] = useInView();
-  const count = useAnimatedCounter(inView ? value : 0, 2000);
+  const count = useAnimatedCounter(inView ? value : 0, 1500);
 
   return (
     <div ref={ref} className="hero-stat" style={{ animationDelay: `${delay}ms` }}>
-      <div className="hero-stat-icon" style={{ color, background: `${color}15` }}>
-        <IconComponent size={20} />
+      <div className="hero-stat-icon" style={{ color, background: `${color}16` }}>
+        <Icon size={20} />
       </div>
-      <div className="hero-stat-value">{count.toLocaleString()}</div>
+      <div className="hero-stat-value">{count.toLocaleString()}{suffix}</div>
       <div className="hero-stat-label">{label}</div>
     </div>
   );
 }
 
-/* ─── Feature Card ─── */
-function FeatureCard({ icon, title, desc, color, index }) {
-  const IconComponent = icon;
+function Reveal({ className = '', delay = 0, children }) {
   const [ref, inView] = useInView();
   return (
     <div
       ref={ref}
-      className={`feature-card ${inView ? 'animate-fade-up' : 'pre-animate'}`}
-      style={{ animationDelay: `${index * 100}ms` }}
+      className={`${className} ${inView ? 'animate-fade-up' : 'pre-animate'}`}
+      style={{ animationDelay: `${delay}ms` }}
     >
-      <div className="feature-icon" style={{ color, background: `${color}12` }}>
-        <IconComponent size={24} />
-      </div>
-      <h3 className="feature-title">{title}</h3>
-      <p className="feature-desc">{desc}</p>
-      <span className="feature-link" style={{ color }}>
-        Learn more <ChevronRight size={14} />
-      </span>
+      {children}
     </div>
   );
 }
 
-/* ─── Landing Page ─── */
+function FeatureCard({ icon, title, desc, color, index }) {
+  const Icon = icon;
+  return (
+    <Reveal className="feature-card" delay={index * 90}>
+      <span className="feature-live-dot" style={{ background: color }} />
+      <div className="feature-icon" style={{ color, background: `${color}14` }}>
+        <Icon size={24} />
+      </div>
+      <h3 className="feature-title">{title}</h3>
+      <p className="feature-desc">{desc}</p>
+    </Reveal>
+  );
+}
+
+function SurfaceCard({ icon, title, desc, index }) {
+  const Icon = icon;
+  return (
+    <Reveal className="surface-card" delay={index * 70}>
+      <div className="surface-icon"><Icon size={20} /></div>
+      <div>
+        <h3>{title}</h3>
+        <p>{desc}</p>
+      </div>
+    </Reveal>
+  );
+}
+
+function WorkflowStep({ item, index }) {
+  const Icon = item.icon;
+  return (
+    <Reveal className="how-step" delay={index * 110}>
+      <div className="how-step-number">{item.step}</div>
+      <div className="how-step-icon"><Icon size={24} /></div>
+      <h3>{item.title}</h3>
+      <p>{item.desc}</p>
+    </Reveal>
+  );
+}
+
+function DashboardPreview() {
+  return (
+    <Reveal className="product-shell">
+      <div className="product-toolbar">
+        <div>
+          <span className="eyebrow">Live workspace</span>
+          <h3>Attack surface overview</h3>
+        </div>
+        <span className="status-pill"><span className="status-dot online" /> Monitoring</span>
+      </div>
+
+      <div className="product-grid">
+        <div className="risk-panel">
+          <div className="risk-ring" aria-label="Risk score 82">
+            <span>82</span>
+          </div>
+          <div>
+            <span className="eyebrow">Risk score</span>
+            <h4>Critical exposure detected</h4>
+            <p>Public admin route and dependency risk should be reviewed first.</p>
+          </div>
+        </div>
+
+        <div className="severity-stack">
+          {[
+            ['Critical', 4, 'critical'],
+            ['High', 9, 'high'],
+            ['Medium', 18, 'medium'],
+            ['Low', 31, 'low'],
+          ].map(([label, count, tone]) => (
+            <div className="severity-row" key={label}>
+              <span className={`severity-dot ${tone}`} />
+              <span>{label}</span>
+              <strong>{count}</strong>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="findings-table" aria-label="Sample findings table">
+        {[
+          ['Critical', 'Admin panel indexed', 'portal.vulnexus.dev', 'Open'],
+          ['High', 'Vulnerable package', 'github.com/org/api', 'Assigned'],
+          ['Medium', 'Missing CSP header', 'app.vulnexus.dev', 'Queued'],
+        ].map(([severity, issue, asset, status], index) => (
+          <div className="finding-row" key={issue} style={{ animationDelay: `${index * 160}ms` }}>
+            <span className={`severity-badge ${severity.toLowerCase()}`}>{severity}</span>
+            <span>{issue}</span>
+            <span>{asset}</span>
+            <strong>{status}</strong>
+          </div>
+        ))}
+      </div>
+    </Reveal>
+  );
+}
+
+function ReportPreview() {
+  return (
+    <Reveal className="report-preview">
+      <div className="report-page">
+        <div className="report-header">
+          <div>
+            <span className="eyebrow">Sample report</span>
+            <h3>Executive remediation brief</h3>
+          </div>
+          <Download size={20} />
+        </div>
+        <div className="report-summary">
+          <div><strong>31</strong><span>findings</span></div>
+          <div><strong>12</strong><span>actions</span></div>
+          <div><strong>4</strong><span>critical</span></div>
+        </div>
+        <div className="report-list">
+          {reportFindings.map((finding) => (
+            <div className="report-finding" key={finding.title}>
+              <span className={`severity-badge ${finding.severity.toLowerCase()}`}>{finding.severity}</span>
+              <div>
+                <strong>{finding.title}</strong>
+                <small>{finding.asset}</small>
+              </div>
+              <b>{finding.score}</b>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Reveal>
+  );
+}
+
 export default function Landing() {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const { displayed, done } = useTypingEffect('Defend Your Digital Perimeter', 45);
+  const { displayed, done } = useTypingEffect('Find the vulnerabilities attackers would see first', 34);
   const [loaded, setLoaded] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setLoaded(true), 100);
     return () => clearTimeout(t);
   }, []);
 
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 24);
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
     <div className={`landing ${loaded ? 'loaded' : ''}`}>
-      {/* ─── Animated background gradients ─── */}
       <div className="landing-bg" aria-hidden="true">
-        <div className="landing-gradient landing-gradient-1" />
-        <div className="landing-gradient landing-gradient-2" />
-        <div className="landing-gradient landing-gradient-3" />
-        <div className="landing-grid-overlay" />
+        <div className="tactical-grid" />
+        <div className="scan-sweep" />
+        <div className="signal signal-a" />
+        <div className="signal signal-b" />
+        <div className="signal signal-c" />
+        <div className="hero-radial" />
       </div>
 
-      {/* ─── Header ─── */}
-      <header className="landing-header">
+      <header className={`landing-header ${scrolled ? 'is-scrolled' : ''}`}>
         <div className="landing-header-inner">
           <Link to="/" className="landing-logo" aria-label="Vulnexus Home">
             <div className="landing-logo-icon">
@@ -192,9 +363,10 @@ export default function Landing() {
           </Link>
 
           <nav className="landing-nav" aria-label="Landing navigation">
-            <a href="#features" className="landing-nav-link">Features</a>
-            <a href="#stats" className="landing-nav-link">Stats</a>
-            <a href="#testimonials" className="landing-nav-link">Testimonials</a>
+            <a href="#product" className="landing-nav-link">Product</a>
+            <a href="#coverage" className="landing-nav-link">Coverage</a>
+            <a href="#workflow" className="landing-nav-link">Workflow</a>
+            <a href="#report" className="landing-nav-link">Report</a>
           </nav>
 
           <div className="landing-header-actions">
@@ -206,67 +378,67 @@ export default function Landing() {
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
             <Link to="/login" className="btn-landing-ghost">Sign In</Link>
-            <Link to="/login" className="btn-landing-primary">
-              Get Started <ArrowRight size={16} />
+            <Link to="/signup" className="btn-landing-primary">
+              Start Free Scan <ArrowRight size={16} />
             </Link>
           </div>
         </div>
       </header>
 
-      {/* ─── Hero Section ─── */}
       <section className="hero">
         <div className="hero-content">
           <div className="hero-text">
             <div className="hero-badge animate-fade-up">
-              <Zap size={14} />
-              <span>Next-Gen Cybersecurity Platform</span>
+              <Terminal size={14} />
+              <span>Attack surface scanning with evidence</span>
             </div>
             <h1 className="hero-title">
               {displayed}
               <span className={`hero-cursor ${done ? 'blink' : ''}`}>|</span>
             </h1>
             <p className="hero-subtitle animate-fade-up stagger-2">
-              Enterprise-grade vulnerability scanning, real-time threat intelligence,
-              and automated remediation — all in one powerful, unified dashboard.
+              Vulnexus scans domains, repositories, dependencies, headers, TLS, DNS,
+              and exposed services, then turns noisy findings into prioritized remediation work.
             </p>
             <div className="hero-cta animate-fade-up stagger-3">
-              <button
-                className="btn-landing-primary btn-lg"
-                onClick={() => navigate('/login')}
-              >
-                Launch Dashboard <ArrowRight size={18} />
+              <button className="btn-landing-primary btn-lg" onClick={() => navigate('/signup')}>
+                Start Free Scan <ArrowRight size={18} />
               </button>
-              <button className="btn-landing-outline btn-lg">
-                <Eye size={18} /> Watch Demo
-              </button>
+              <a className="btn-landing-outline btn-lg" href="#report">
+                <Eye size={18} /> View Sample Report
+              </a>
             </div>
-            <div className="hero-trust animate-fade-up stagger-4">
-              <div className="hero-trust-avatars">
-                {[1, 2, 3, 4, 5].map(i => (
-                  <div key={i} className="hero-trust-avatar" style={{ animationDelay: `${i * 80}ms` }}>
-                    {String.fromCharCode(64 + i)}
-                  </div>
-                ))}
-              </div>
-              <div className="hero-trust-text">
-                <div className="hero-trust-stars">
-                  {[...Array(5)].map((_, i) => <Star key={i} size={12} fill="#FACC15" color="#FACC15" />)}
-                </div>
-                <span>Trusted by 2,500+ security teams worldwide</span>
-              </div>
+            <div className="hero-proof animate-fade-up stagger-4">
+              {proofItems.map((item) => (
+                <span key={item}><CheckCircle2 size={15} /> {item}</span>
+              ))}
             </div>
           </div>
 
           <div className="hero-globe animate-fade-up stagger-2">
-            <Suspense fallback={
-              <LoadingStage compact label="Rendering threat globe" detail="Calibrating terrain, cloud cover, and live telemetry arcs." />
-            }>
+            <Suspense fallback={<div className="globe-placeholder" aria-hidden="true" />}>
               <Globe />
             </Suspense>
           </div>
         </div>
 
-        {/* Hero stats bar */}
+        <div className="scan-console animate-fade-up stagger-5" aria-label="Scan pipeline preview">
+          <div className="scan-console-input">
+            <Terminal size={17} />
+            <span>vulnexus scan</span>
+            <strong>example.com</strong>
+            <i />
+          </div>
+          <div className="scan-pipeline">
+            {scanPipeline.map((item, index) => (
+              <span className={`scan-step ${item.status}`} key={item.label} style={{ animationDelay: `${index * 180}ms` }}>
+                {item.status === 'done' ? <Check size={13} /> : <Activity size={13} />}
+                {item.label}
+              </span>
+            ))}
+          </div>
+        </div>
+
         <div className="hero-stats" id="stats">
           {heroStats.map((stat, i) => (
             <StatCounter key={stat.label} {...stat} delay={i * 150} />
@@ -274,87 +446,144 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ─── Trusted By ─── */}
-      <section className="trusted-section">
-        <p className="trusted-label">Trusted by industry leaders</p>
-        <div className="trusted-logos">
-          {trustedBy.map((name, i) => (
-            <div key={name} className="trusted-logo" style={{ animationDelay: `${i * 100}ms` }}>
-              <Shield size={16} />
-              <span>{name}</span>
-            </div>
+      <section className="product-section" id="product">
+        <div className="section-header split">
+          <div>
+            <span className="section-badge"><Activity size={14} /> Product cockpit</span>
+            <h2 className="section-heading">Show the risk, the evidence, and the next action.</h2>
+          </div>
+          <p className="section-subheading">
+            The landing page now leads with what Vulnexus actually helps teams do:
+            inspect exposure, rank findings, and move fixes through verification.
+          </p>
+        </div>
+        <DashboardPreview />
+      </section>
+
+      <section className="coverage-section" id="coverage">
+        <div className="section-header">
+          <span className="section-badge"><Network size={14} /> Attack surface coverage</span>
+          <h2 className="section-heading">One scanner for the assets teams actually ship.</h2>
+          <p className="section-subheading">
+            Replace vague security promises with concrete modules visitors can understand.
+          </p>
+        </div>
+        <div className="surface-grid">
+          {surfaceAreas.map((item, i) => (
+            <SurfaceCard key={item.title} {...item} index={i} />
           ))}
         </div>
       </section>
 
-      {/* ─── Features Grid ─── */}
       <section className="features-section" id="features">
         <div className="section-header">
-          <span className="section-badge">
-            <Zap size={14} /> Capabilities
-          </span>
-          <h2 className="section-heading">Everything you need to stay secure</h2>
+          <span className="section-badge"><Zap size={14} /> Capabilities</span>
+          <h2 className="section-heading">Built for fewer alerts and better decisions.</h2>
           <p className="section-subheading">
-            A comprehensive suite of tools designed for modern security operations centers.
+            The page now sells a sharper promise: evidence-driven vulnerability management, not generic cyber magic.
           </p>
         </div>
         <div className="features-grid">
-          {features.map((f, i) => (
-            <FeatureCard key={f.title} {...f} index={i} />
+          {features.map((feature, i) => (
+            <FeatureCard key={feature.title} {...feature} index={i} />
           ))}
         </div>
       </section>
 
-      {/* ─── How It Works ─── */}
-      <section className="how-section">
+      <section className="risk-section">
+        <Reveal className="risk-comparison">
+          <div className="risk-copy">
+            <span className="section-badge"><AlertTriangle size={14} /> Prioritization</span>
+            <h2 className="section-heading">Turn 143 findings into the 12 actions that matter.</h2>
+            <p className="section-subheading">
+              Vulnerability lists get noisy fast. Vulnexus groups findings by severity,
+              confidence, asset context, and remediation path so teams can move.
+            </p>
+          </div>
+          <div className="before-after">
+            <div className="before-card">
+              <span>Before</span>
+              <strong>143</strong>
+              <p>unresolved findings across domains, repos, and services</p>
+            </div>
+            <ArrowRight size={24} />
+            <div className="after-card">
+              <span>After</span>
+              <strong>12</strong>
+              <p>prioritized remediation actions with evidence and owners</p>
+            </div>
+          </div>
+        </Reveal>
+      </section>
+
+      <section className="how-section" id="workflow">
         <div className="section-header">
-          <span className="section-badge"><Activity size={14} /> Workflow</span>
-          <h2 className="section-heading">From scan to secure in minutes</h2>
+          <span className="section-badge"><ShieldCheck size={14} /> Remediation workflow</span>
+          <h2 className="section-heading">From detection to verified fix.</h2>
         </div>
         <div className="how-steps">
-          {howStepsData.map((item, i) => (
-            <HowStep key={item.step} item={item} index={i} />
+          {workflowSteps.map((item, i) => (
+            <WorkflowStep key={item.step} item={item} index={i} />
           ))}
         </div>
       </section>
 
-      {/* ─── Testimonials ─── */}
-      <section className="testimonials-section" id="testimonials">
+      <section className="report-section" id="report">
+        <div className="section-header split">
+          <div>
+            <span className="section-badge"><FileText size={14} /> Report preview</span>
+            <h2 className="section-heading">Give stakeholders the clean version of the truth.</h2>
+          </div>
+          <p className="section-subheading">
+            Reports should explain what is affected, how severe it is, and what to do next without sending people hunting through raw scan output.
+          </p>
+        </div>
+        <ReportPreview />
+      </section>
+
+      <section className="roles-section">
         <div className="section-header">
-          <span className="section-badge"><Star size={14} /> Reviews</span>
-          <h2 className="section-heading">What security leaders say</h2>
+          <span className="section-badge"><Users size={14} /> Use cases</span>
+          <h2 className="section-heading">Different teams, one risk language.</h2>
         </div>
-        <div className="testimonials-grid">
-          {testimonials.map((t, i) => (
-            <TestimonialCard key={i} t={t} index={i} />
-          ))}
+        <div className="roles-grid">
+          {roleCards.map((role, i) => {
+            const Icon = role.icon;
+            return (
+              <Reveal className="role-card" delay={i * 80} key={role.title}>
+                <Icon size={22} />
+                <h3>{role.title}</h3>
+                <p>{role.desc}</p>
+              </Reveal>
+            );
+          })}
         </div>
       </section>
 
-      {/* ─── CTA Section ─── */}
       <section className="cta-section">
         <div className="cta-card">
           <div className="cta-glow" aria-hidden="true" />
-          <h2 className="cta-title">Ready to secure your infrastructure?</h2>
+          <span className="section-badge"><Zap size={14} /> Start with one target</span>
+          <h2 className="cta-title">Run a scan, get the evidence, fix what matters.</h2>
           <p className="cta-desc">
-            Start scanning in under 2 minutes. No credit card required.
+            Create an account and turn your first domain, repository, or dependency set into a prioritized remediation queue.
           </p>
           <div className="cta-actions">
-            <button className="btn-landing-primary btn-lg" onClick={() => navigate('/login')}>
-              Get Started Free <ArrowRight size={18} />
+            <button className="btn-landing-primary btn-lg" onClick={() => navigate('/signup')}>
+              Create Account <ArrowRight size={18} />
+            </button>
+            <button className="btn-landing-outline btn-lg" onClick={() => navigate('/login')}>
+              Sign In
             </button>
           </div>
           <div className="cta-checks">
-            {['Free 14-day trial', 'No credit card', 'Cancel anytime'].map(txt => (
-              <span key={txt} className="cta-check">
-                <Check size={14} /> {txt}
-              </span>
+            {['No credit card', 'Evidence-based findings', 'Exportable reports'].map(txt => (
+              <span key={txt} className="cta-check"><Check size={14} /> {txt}</span>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ─── Footer ─── */}
       <footer className="landing-footer">
         <div className="landing-footer-inner">
           <div className="landing-footer-brand">
@@ -365,37 +594,24 @@ export default function Landing() {
               <span className="landing-logo-text">Vulnexus</span>
             </div>
             <p className="landing-footer-desc">
-              Enterprise cybersecurity platform for modern security teams.
+              Evidence-driven vulnerability scanning for modern teams.
             </p>
           </div>
           <div className="landing-footer-links">
-            <div className="landing-footer-col">
-              <h4>Product</h4>
-              <a href="#features">Features</a>
-              <a href="#">Pricing</a>
-              <a href="#">Integrations</a>
-              <a href="#">Changelog</a>
-            </div>
-            <div className="landing-footer-col">
-              <h4>Company</h4>
-              <a href="#">About</a>
-              <a href="#">Blog</a>
-              <a href="#">Careers</a>
-              <a href="#">Contact</a>
-            </div>
-            <div className="landing-footer-col">
-              <h4>Legal</h4>
-              <a href="#">Privacy Policy</a>
-              <a href="#">Terms of Service</a>
-              <a href="#">Security</a>
-              <a href="#">GDPR</a>
-            </div>
+            {landingFooterGroups.map((group) => (
+              <div className="landing-footer-col" key={group.title}>
+                <h4>{group.title}</h4>
+                {group.links.map((link) => (
+                  <Link key={link.to} to={link.to}>{link.label}</Link>
+                ))}
+              </div>
+            ))}
           </div>
         </div>
         <div className="landing-footer-bottom">
           <span>&copy; 2026 Vulnexus. All rights reserved.</span>
           <span className="landing-footer-status">
-            <span className="status-dot online" /> All Systems Operational &middot; v2.4.1
+            <span className="status-dot online" /> Scanner console ready
           </span>
         </div>
       </footer>

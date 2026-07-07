@@ -6,29 +6,30 @@
 :root,
 [data-theme='dark'] {
   /* Core backgrounds */
-  --bg-primary: #050505;
-  --bg-secondary: #101011;
-  --bg-tertiary: #1B1B1D;
-  --bg-elevated: #151517;
-  --bg-input: #0B0B0C;
-  --bg-hover: rgba(255, 255, 255, 0.03);
-  --bg-overlay: rgba(0, 0, 0, 0.6);
+  --bg-primary: #07111f;
+  --bg-secondary: #0d1a2b;
+  --bg-tertiary: #132338;
+  --bg-elevated: #102033;
+  --bg-input: #091725;
+  --bg-hover: rgba(125, 180, 226, 0.08);
+  --bg-overlay: rgba(4, 12, 24, 0.68);
 
   /* Text */
-  --text-primary: #F2F1ED;
-  --text-secondary: #B8B4AD;
-  --text-tertiary: #76726C;
-  --text-inverse: #050505;
+  --text-primary: #edf6ff;
+  --text-secondary: #adc2d6;
+  --text-tertiary: #6f8ba7;
+  --text-inverse: #07111f;
 
   /* Borders */
-  --border-primary: #262629;
-  --border-secondary: #171719;
-  --border-focus: #D6D1C6;
+  --border-primary: #22354d;
+  --border-secondary: #17273a;
+  --border-focus: #7db4e2;
 
   /* Brand */
-  --brand-primary: #D6D1C6;
-  --brand-secondary: #8D867B;
-  --brand-glow: rgba(214, 209, 198, 0.22);
+  --brand-primary: #7db4e2;
+  --brand-secondary: #4e86b8;
+  --brand-accent: #a8d5ff;
+  --brand-glow: rgba(125, 180, 226, 0.22);
 
   /* Severity / Status */
   --severity-critical: #EF4444;
@@ -38,8 +39,8 @@
   --severity-info: #38BDF8;
 
   /* Chart colors (color-blind accessible) */
-  --chart-1: #D6D1C6;
-  --chart-2: #A49A8B;
+  --chart-1: #7db4e2;
+  --chart-2: #5fc4d8;
   --chart-3: #EF4444;
   --chart-4: #F59E0B;
   --chart-5: #22C55E;
@@ -49,7 +50,7 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 24px rgba(214, 209, 198, 0.14);
+  --shadow-glow: 0 0 24px rgba(125, 180, 226, 0.15);
 
   /* Radii */
   --radius-sm: 4px;
@@ -119,8 +120,8 @@
   --z-modal:   1000;
 
   /* Interactive surface colors */
-  --bg-hover-brand: rgba(214, 209, 198, 0.08);
-  --bg-active-brand: rgba(214, 209, 198, 0.14);
+  --bg-hover-brand: rgba(125, 180, 226, 0.1);
+  --bg-active-brand: rgba(125, 180, 226, 0.16);
   --bg-card: var(--bg-secondary);
   --text-muted: var(--text-tertiary);
   --transition-normal: var(--transition-base);

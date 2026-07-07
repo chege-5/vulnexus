@@ -1,25 +1,24 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, Scan, Play, FileCheck, FileText, Bug, Settings,
+  LayoutDashboard, Scan, FileText, Bug, Settings,
   Users, History, Bell, HelpCircle, ChevronLeft, ChevronRight,
-  CreditCard, Sliders
+  CreditCard, Sliders, BrainCircuit
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import logo from '../../assets/logo.png';
 import './Sidebar.css';
 
 const navItems = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
   { to: '/scan/new', icon: Scan, label: 'New Scan' },
-  { to: '/scan/progress', icon: Play, label: 'Scan Progress' },
-  { to: '/scan/results', icon: FileCheck, label: 'Scan Results' },
+  { to: '/history', icon: History, label: 'Scans' },
+  { to: '/vulnerability', icon: Bug, label: 'Findings' },
   { to: '/reports', icon: FileText, label: 'Reports' },
-  { to: '/vulnerability', icon: Bug, label: 'Vulnerabilities' },
-  { divider: true },
-  { to: '/history', icon: History, label: 'Scan History' },
+  { to: '/vulnerability', icon: BrainCircuit, label: 'Intelligence' },
   { to: '/users', icon: Users, label: 'Team' },
   { to: '/notifications', icon: Bell, label: 'Alerts' },
-  { to: '/pricing', icon: CreditCard, label: 'Pricing & Billing' },
+  { divider: true },
+  { to: '/pricing', icon: CreditCard, label: 'Billing' },
   { to: '/admin', icon: Sliders, label: 'Admin Portal', adminOnly: true },
   { divider: true },
   { to: '/settings', icon: Settings, label: 'Settings' },

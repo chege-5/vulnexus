@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, Calendar } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
 import { backendApi } from '../../api/backendApi';
@@ -13,11 +13,12 @@ const PAGE_SIZE = 6;
 
 export default function ScanHistory() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { data: scans, loading, error, refetch } = useApi(async () => {
     const raw = await backendApi.getScans();
     return raw.map(normalizeScanHistoryItem);
   });
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('q') || '');
   const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
 
@@ -64,7 +65,7 @@ export default function ScanHistory() {
           />
         </div>
         <div className="filter-group">
-          {['all', 'completed', 'running', 'failed', 'queued'].map((s) => (
+          {['all', 'completed', 'running', 'failed', 'canceled', 'queued'].map((s) => (
             <button
               key={s}
               className={`filter-btn ${statusFilter === s ? 'active' : ''}`}

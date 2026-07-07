@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Activity, Globe, Clock, ArrowRight, AlertTriangle, Loader } from 'lucide-react';
+import { Activity, Globe, Clock, ArrowRight, AlertTriangle, Loader, Shield, Lock, Network, SearchCode, ListChecks, BrainCircuit } from 'lucide-react';
 import ScanProgressSteps from '../../components/ScanProgress/ScanProgress';
 import { backendApi } from '../../api/backendApi';
 import { buildProgressSteps, formatScanType } from '../../api/normalizers';
@@ -26,6 +26,30 @@ export default function ScanProgressPage() {
     const timer = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(timer);
   }, [scanId]);
+
+  useEffect(() => {
+    if (!scanId) return undefined;
+    let socket;
+    try {
+      socket = new WebSocket(backendApi.getScanWebSocketUrl(scanId));
+      socket.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          setStatusData((prev) => ({ ...(prev || {}), ...payload }));
+          if (payload.status === 'completed') {
+            navigate(`/scan/results/${scanId}`, { replace: true, state: { target, scanType } });
+          }
+        } catch {
+          // Ignore malformed websocket payloads; polling remains as fallback.
+        }
+      };
+    } catch {
+      return undefined;
+    }
+    return () => {
+      if (socket && socket.readyState < 2) socket.close();
+    };
+  }, [scanId, navigate, target, scanType]);
 
   useEffect(() => {
     if (!scanId) return undefined;
@@ -68,6 +92,7 @@ export default function ScanProgressPage() {
   const status = statusData?.status ?? 'queued';
   const steps = useMemo(() => buildProgressSteps(progress, status), [progress, status]);
   const findings = resultPreview?.vulnerabilities?.length ?? 0;
+  const statusMessage = statusData?.message || statusData?.error_message || '';
 
   const formatTime = (s) => {
     const m = Math.floor(s / 60);
@@ -78,6 +103,30 @@ export default function ScanProgressPage() {
   const eta = progress > 0 && progress < 100
     ? Math.round(((100 - progress) / progress) * elapsed)
     : null;
+
+  const modulesByType = {
+    url: [
+      { icon: Lock, label: 'TLS' },
+      { icon: Shield, label: 'Headers' },
+      { icon: Network, label: 'DNS' },
+      { icon: Globe, label: 'Crawl' },
+      { icon: ListChecks, label: 'Compliance' },
+      { icon: BrainCircuit, label: 'AI risk' },
+    ],
+    file: [
+      { icon: SearchCode, label: 'Secrets' },
+      { icon: ListChecks, label: 'Dependencies' },
+      { icon: Shield, label: 'Compliance' },
+      { icon: BrainCircuit, label: 'AI risk' },
+    ],
+    github: [
+      { icon: SearchCode, label: 'Repository' },
+      { icon: SearchCode, label: 'Secrets' },
+      { icon: ListChecks, label: 'Dependencies' },
+      { icon: Shield, label: 'Compliance' },
+      { icon: BrainCircuit, label: 'AI risk' },
+    ],
+  };
 
   if (!scanId) {
     return (
@@ -102,7 +151,8 @@ export default function ScanProgressPage() {
     <div className="scan-progress-page">
       <div className="scan-progress-header animate-fade-up">
         <div>
-          <h2 className="page-title">Scan in Progress</h2>
+          <span className="page-kicker">Pipeline monitor</span>
+          <h2 className="page-title">Scan orchestration in progress</h2>
           <p className="page-desc">
             Target: <span className="mono">{target}</span>
           </p>
@@ -127,6 +177,17 @@ export default function ScanProgressPage() {
 
       <div className="scan-progress-grid">
         <div className="card scan-progress-main animate-fade-up stagger-1">
+          <div className="pipeline-module-row">
+            {(modulesByType[scanType] || modulesByType.url).map((module) => {
+              const Icon = module.icon;
+              return (
+                <div key={module.label} className={`pipeline-module ${progress > 10 ? 'active' : ''}`}>
+                  <Icon size={15} />
+                  <span>{module.label}</span>
+                </div>
+              );
+            })}
+          </div>
           <ScanProgressSteps steps={steps} progress={progress} />
         </div>
 
@@ -158,6 +219,12 @@ export default function ScanProgressPage() {
                 <span className="target-info-label">Progress</span>
                 <span className="target-info-value">{progress}%</span>
               </div>
+              {statusMessage && (
+                <div className="target-info-item">
+                  <span className="target-info-label">Message</span>
+                  <span className="target-info-value">{statusMessage}</span>
+                </div>
+              )}
               <div className="target-info-item">
                 <span className="target-info-label">Scan ID</span>
                 <span className="target-info-value mono">{String(scanId).slice(0, 8)}…</span>
@@ -188,6 +255,19 @@ export default function ScanProgressPage() {
 
       <div className="scan-progress-actions animate-fade-up stagger-5">
         <Link to="/scan/new" className="btn btn-secondary">New Scan</Link>
+        {['queued', 'in_progress', 'running'].includes(status) && (
+          <button className="btn btn-danger" onClick={() => backendApi.cancelScan(scanId)}>
+            Cancel Scan
+          </button>
+        )}
+        {['failed', 'canceled'].includes(status) && (
+          <button className="btn btn-primary" onClick={async () => {
+            const retry = await backendApi.retryScan(scanId);
+            navigate(`/scan/progress/${retry.scan_id}`, { state: { scanId: retry.scan_id, target, scanType } });
+          }}>
+            Retry Scan
+          </button>
+        )}
         {status === 'completed' ? (
           <Link to={`/scan/results/${scanId}`} className="btn btn-primary">
             View Results <ArrowRight size={14} />

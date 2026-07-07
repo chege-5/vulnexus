@@ -11,6 +11,7 @@ import './AdminPortal.css';
 export default function AdminPortal() {
   const [users, setUsers] = useState([]);
   const [analytics, setAnalytics] = useState(null);
+  const [providerHealth, setProviderHealth] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
@@ -36,8 +37,10 @@ export default function AdminPortal() {
     try {
       const usersData = await backendApi.adminGetUsers();
       const analyticsData = await backendApi.adminGetAnalytics();
+      const providerData = await backendApi.adminGetProviderHealth();
       setUsers(usersData);
       setAnalytics(analyticsData);
+      setProviderHealth(providerData);
     } catch (err) {
       setError(err.message || 'Failed to fetch admin dashboard data.');
     } finally {
@@ -110,8 +113,9 @@ export default function AdminPortal() {
       {/* Page Title */}
       <div className="admin-header animate-fade-up">
         <div>
-          <h2 className="page-title">Super Admin Command Center</h2>
-          <p className="page-desc">System configuration, security approvals, and real-time telemetry.</p>
+          <span className="page-kicker">Control plane</span>
+          <h2 className="page-title">Admin Portal</h2>
+          <p className="page-desc">Manage user approvals, subscription limits, communications, and scan telemetry.</p>
         </div>
         <button className="btn btn-secondary" onClick={fetchAdminData}>
           Refresh Telemetry
@@ -123,7 +127,7 @@ export default function AdminPortal() {
         <div className="telemetry-card animate-fade-up stagger-1">
           <div className="telemetry-icon users"><Users size={20} /></div>
           <div className="telemetry-info">
-            <span className="telemetry-label">Registered Cores</span>
+            <span className="telemetry-label">Registered Users</span>
             <h3 className="telemetry-value">{analytics?.total_users || 0}</h3>
             <span className="telemetry-detail">Active user profiles</span>
           </div>
@@ -184,9 +188,22 @@ export default function AdminPortal() {
         </div>
       </div>
 
+      <div className="card provider-health-card animate-fade-up stagger-5">
+        <h3 className="card-title"><Shield size={16} /> Provider Health</h3>
+        <div className="provider-health-grid">
+          {providerHealth.length ? providerHealth.map((provider) => (
+            <div key={provider.provider} className={`provider-health-item ${provider.healthy ? 'healthy' : 'unhealthy'}`}>
+              <strong>{provider.provider}</strong>
+              <span>{provider.healthy ? 'Healthy' : 'Needs attention'}</span>
+              <small>{provider.message}</small>
+            </div>
+          )) : <p className="empty-logs">No providers enabled.</p>}
+        </div>
+      </div>
+
       {/* Users Management Grid */}
-      <div className="admin-users-section card animate-fade-up stagger-5">
-        <h3 className="card-title"><Users size={16} /> User Audits & Approvals</h3>
+      <div className="admin-users-section card animate-fade-up stagger-6">
+          <h3 className="card-title"><Users size={16} /> Users, Approvals & Limits</h3>
         <div className="table-responsive">
           <table className="admin-users-table">
             <thead>
@@ -295,7 +312,7 @@ export default function AdminPortal() {
       {/* Communications console and System activity */}
       <div className="admin-lower-grid animate-fade-up stagger-6">
         <div className="card comms-card">
-          <h3 className="card-title"><Mail size={16} /> Broadcast & Communications Console</h3>
+          <h3 className="card-title"><Mail size={16} /> Communications</h3>
           <form onSubmit={handleSendCommunication} className="admin-comm-form">
             <div className="form-group">
               <label className="form-label">Recipient Channel</label>
@@ -372,7 +389,7 @@ export default function AdminPortal() {
 
         {/* Live system logs / activity */}
         <div className="card logs-card">
-          <h3 className="card-title"><Activity size={16} /> Live Scan Stream Logs</h3>
+          <h3 className="card-title"><Activity size={16} /> Recent Scan Activity</h3>
           <div className="logs-stream-container">
             {analytics?.recent_scans && analytics.recent_scans.length > 0 ? (
               analytics.recent_scans.map((log, idx) => (

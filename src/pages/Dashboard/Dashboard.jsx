@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Shield, Scan, Bug, CheckCircle, TrendingUp, ArrowRight,
-  AlertTriangle, Activity, Globe, Server
+  AlertTriangle, Activity, Globe, Server, BrainCircuit, FileText, ShieldCheck
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -18,10 +18,10 @@ import { SkeletonPage } from '../../components/SkeletonLoader/SkeletonLoader';
 import ErrorState from '../../components/ErrorState/ErrorState';
 import './Dashboard.css';
 
-const COLORS = ['#ef4444', '#f59e0b', '#d6d1c6', '#6ee7b7'];
+const COLORS = ['#ef4444', '#fb923c', '#facc15', '#22c55e'];
 const CHART_COLORS = {
-  scans: '#d6d1c6',
-  scansFill: 'rgba(214, 209, 198, 0.34)',
+  scans: '#7db4e2',
+  scansFill: 'rgba(125, 180, 226, 0.28)',
   threats: '#ef4444',
   threatsFill: 'rgba(239, 68, 68, 0.26)',
 };
@@ -35,7 +35,6 @@ export default function Dashboard() {
   const totalScans = useAnimatedCounter(data?.totalScans);
   const activeThreats = useAnimatedCounter(data?.activeThreats);
   const resolved = useAnimatedCounter(data?.resolvedThisMonth);
-  const projects = useAnimatedCounter(data?.projects);
   const repositories = useAnimatedCounter(data?.repositories);
   const organizations = useAnimatedCounter(data?.organizations);
   const openFindings = useAnimatedCounter(data?.openFindings);
@@ -53,6 +52,45 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard">
+      <div className="command-hero animate-fade-up">
+        <div className="command-hero-main">
+          <span className="page-kicker">Security operations overview</span>
+          <h2 className="page-title">Risk, compliance, and remediation queue</h2>
+          <p className="page-desc">
+            Live posture from URL, file, and GitHub scans enriched with CVE, compliance, and AI risk context.
+          </p>
+          <div className="command-actions">
+            <button className="btn btn-primary" onClick={() => navigate('/scan/new')}>
+              <Scan size={16} /> New Scan
+            </button>
+            <button className="btn btn-secondary" onClick={() => navigate('/vulnerability')}>
+              <Bug size={16} /> Review Findings
+            </button>
+          </div>
+        </div>
+        <div className="command-hero-panel">
+          <div className="verdict-row">
+            <span>Audit verdict</span>
+            <strong>{data.finalAuditVerdict}</strong>
+          </div>
+          <div className="hero-score-grid">
+            <div>
+              <span>Risk</span>
+              <strong>{data.riskScore}</strong>
+            </div>
+            <div>
+              <span>Compliance</span>
+              <strong>{data.complianceScore != null ? `${Math.round(data.complianceScore)}%` : 'N/A'}</strong>
+            </div>
+            <div>
+              <span>Critical</span>
+              <strong>{data.criticalFindings}</strong>
+            </div>
+          </div>
+          {data.finalAuditReason ? <p>{data.finalAuditReason}</p> : null}
+        </div>
+      </div>
+
       {/* Stat cards */}
       <div className="dash-stats">
         <StatCard
@@ -68,7 +106,7 @@ export default function Dashboard() {
           color="var(--severity-low)" index={2}
         />
         <StatCard
-          icon={Activity} label="Projects" value={projects}
+          icon={ShieldCheck} label="Compliance" value={Math.round(data.complianceScore || 0)}
           color="var(--brand-secondary)" index={3}
         />
         <StatCard
@@ -93,6 +131,35 @@ export default function Dashboard() {
           </div>
           <div className="stat-info">
             <span className="stat-label">Risk Score</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="dash-section animate-fade-up stagger-4">
+        <div className="section-header">
+          <h3 className="section-title">Attention Queue</h3>
+          <Link to="/vulnerability" className="section-link">Open Findings <ArrowRight size={14} /></Link>
+        </div>
+        <div className="attention-grid">
+          <div className="attention-card critical">
+            <AlertTriangle size={18} />
+            <span>Critical findings</span>
+            <strong>{data.criticalFindings}</strong>
+          </div>
+          <div className="attention-card high">
+            <Shield size={18} />
+            <span>High findings</span>
+            <strong>{data.highFindings}</strong>
+          </div>
+          <div className="attention-card ai">
+            <BrainCircuit size={18} />
+            <span>AI insight items</span>
+            <strong>{data.recentAiConversations.length}</strong>
+          </div>
+          <div className="attention-card reports">
+            <FileText size={18} />
+            <span>Recent reports</span>
+            <strong>{data.recentReports.length}</strong>
           </div>
         </div>
       </div>

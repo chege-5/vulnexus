@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, Download, Eye, Calendar, HardDrive, Loader } from 'lucide-react';
+import { FileText, Download, Eye, Calendar, HardDrive, Loader, ShieldCheck, Database } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useApi } from '../../hooks/useApi';
 import { backendApi } from '../../api/backendApi';
@@ -21,6 +21,7 @@ export default function Reports() {
   });
   const [downloading, setDownloading] = useState(null);
   const [reportFormat, setReportFormat] = useState('pdf');
+  const [actionMessage, setActionMessage] = useState('');
 
   if (loading) return <SkeletonPage />;
   if (error) return <ErrorState message={error} onRetry={refetch} />;
@@ -30,7 +31,7 @@ export default function Reports() {
     try {
       await backendApi.downloadReport(id, reportFormat);
     } catch (err) {
-      alert(err.message || 'Report not available yet');
+      setActionMessage(err.message || 'Report not available yet');
     } finally {
       setDownloading(null);
     }
@@ -40,8 +41,9 @@ export default function Reports() {
     <div className="reports-page">
       <div className="reports-header animate-fade-up">
         <div>
+          <span className="page-kicker">Audit library</span>
           <h2 className="page-title">Reports</h2>
-          <p className="page-desc">Download audit reports from completed scans</p>
+          <p className="page-desc">Download audit-ready evidence packages from completed URL, file, and GitHub scans.</p>
         </div>
         <div className="reports-toolbar">
           <select value={reportFormat} onChange={(e) => setReportFormat(e.target.value)} className="report-format-select">
@@ -54,8 +56,27 @@ export default function Reports() {
           </button>
         </div>
       </div>
+      {actionMessage && <div className="launch-error" role="alert">{actionMessage}</div>}
 
-      <div className="reports-grid">
+      <div className="reports-summary-row animate-fade-up stagger-1">
+        <div className="report-summary-card">
+          <FileText size={18} />
+          <span>Total reports</span>
+          <strong>{reports?.length || 0}</strong>
+        </div>
+        <div className="report-summary-card">
+          <ShieldCheck size={18} />
+          <span>Audit formats</span>
+          <strong>PDF / HTML</strong>
+        </div>
+        <div className="report-summary-card">
+          <Database size={18} />
+          <span>Machine export</span>
+          <strong>JSON</strong>
+        </div>
+      </div>
+
+      <div className="reports-grid audit-library-grid">
         {(reports || []).map((report, i) => (
           <div key={report.id} className={`card report-card animate-fade-up stagger-${i + 1}`}>
             <div className="report-icon-wrapper">

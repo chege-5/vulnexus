@@ -72,9 +72,10 @@ export const backendApi = {
   },
 
   async exchangeOAuthCode(provider, code, redirectUri) {
+    const state = new URLSearchParams(window.location.search).get('state');
     const data = await request(`/auth/${provider}/exchange`, {
       method: 'POST',
-      body: JSON.stringify({ code, redirect_uri: redirectUri }),
+      body: JSON.stringify({ code, state, redirect_uri: redirectUri }),
     });
     return { token: data.access_token, refreshToken: data.refresh_token, user: data.user };
   },
@@ -111,6 +112,38 @@ export const backendApi = {
     return request(`/auth/github/repositories/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}/branches`);
   },
 
+  getMe() {
+    return request('/auth/me');
+  },
+
+  updateMe(payload) {
+    return request('/auth/me', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  changePassword(currentPassword, newPassword) {
+    return request('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    });
+  },
+
+  forgotPassword(email) {
+    return request('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  resetPassword(token, newPassword) {
+    return request('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, new_password: newPassword }),
+    });
+  },
+
   async scanGithubRepository(payload) {
     return request('/scan-github-repository', {
       method: 'POST',
@@ -118,10 +151,10 @@ export const backendApi = {
     });
   },
 
-  scanUrl(url) {
+  scanUrl(url, projectId = null) {
     return request('/scan-url', {
       method: 'POST',
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({ url, project_id: projectId }),
     });
   },
 
@@ -138,8 +171,8 @@ export const backendApi = {
     return request('/dashboard');
   },
 
-  getScans() {
-    return request('/scans');
+  getScans({ limit = 50, offset = 0 } = {}) {
+    return request(`/scans?limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}`);
   },
 
   getScanStatus(scanId) {
@@ -150,12 +183,66 @@ export const backendApi = {
     return request(`/scan-result/${scanId}`);
   },
 
+  cancelScan(scanId) {
+    return request(`/scans/${scanId}/cancel`, { method: 'POST' });
+  },
+
+  retryScan(scanId) {
+    return request(`/scans/${scanId}/retry`, { method: 'POST' });
+  },
+
+  deleteScan(scanId) {
+    return request(`/scans/${scanId}`, { method: 'DELETE' });
+  },
+
+  getScanWebSocketUrl(scanId) {
+    const token = localStorage.getItem(TOKEN_KEY);
+    const wsBase = API_BASE_URL.replace(/^http/, 'ws').replace(/\/api\/v1$/, '');
+    return `${wsBase}/api/v1/ws/scan-status/${encodeURIComponent(scanId)}?token=${encodeURIComponent(token || '')}`;
+  },
+
   getVulnerabilities() {
     return request('/vulnerabilities');
   },
 
   getVulnerabilityById(id) {
     return request(`/vulnerabilities/${id}`);
+  },
+
+  async explainVulnerability(id, audience = 'analyst') {
+    return request(`/vulnerabilities/${id}/explain?audience=${encodeURIComponent(audience)}`);
+  },
+
+  updateVulnerability(id, payload) {
+    return request(`/vulnerabilities/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  addVulnerabilityComment(id, body) {
+    return request(`/vulnerabilities/${id}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    });
+  },
+
+  async downloadVulnerabilityReport(id, format = 'pdf') {
+    const token = localStorage.getItem(TOKEN_KEY);
+    const response = await fetch(`${API_BASE_URL}/vulnerabilities/${id}/report?format=${encodeURIComponent(format)}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      throw new ApiError('Failed to download finding report', response.status);
+    }
+    if (format === 'json') {
+      return response.json();
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get('content-disposition') || '';
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const fallback = `vulnexus_finding_${id}.${format}`;
+    downloadBlob(blob, match?.[1] || fallback);
   },
 
   getReports() {
@@ -186,6 +273,26 @@ export const backendApi = {
     const match = disposition.match(/filename="?([^"]+)"?/);
     const filename = match?.[1] || `vulnexus_report_${scanId}.pdf`;
     downloadBlob(blob, filename);
+  },
+
+  deleteReport(scanId) {
+    return request(`/report/${scanId}`, { method: 'DELETE' });
+  },
+
+  getOrganizations() {
+    return request('/organizations');
+  },
+
+  createOrganization(name) {
+    return request('/organizations', { method: 'POST', body: JSON.stringify({ name }) });
+  },
+
+  getProjects() {
+    return request('/projects');
+  },
+
+  createProject(payload) {
+    return request('/projects', { method: 'POST', body: JSON.stringify(payload) });
   },
 
   getNotifications() {
@@ -259,6 +366,10 @@ export const backendApi = {
 
   adminGetAnalytics() {
     return request('/admin/analytics');
+  },
+
+  adminGetProviderHealth() {
+    return request('/admin/providers/health');
   },
 };
 
