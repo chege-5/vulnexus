@@ -42,7 +42,7 @@ export default function ScanProgressPage() {
     }
 
     completionTimer.current = window.setTimeout(() => {
-      navigate(`/scan/results/${scanId}`, {
+      navigate(`/dashboard/scan/results/${scanId}`, {
         replace: true,
         state: { target, scanType },
       });
@@ -178,7 +178,7 @@ export default function ScanProgressPage() {
       <div className="scan-progress-page">
         <ErrorState
           message="No scan in progress. Start a new scan to track progress."
-          onRetry={() => navigate('/scan/new')}
+          onRetry={() => navigate('/dashboard/scan/new')}
         />
       </div>
     );
@@ -187,7 +187,7 @@ export default function ScanProgressPage() {
   if (error && statusData?.status === 'failed') {
     return (
       <div className="scan-progress-page">
-        <ErrorState message={error} onRetry={() => navigate('/scan/new')} />
+        <ErrorState message={error} onRetry={() => navigate('/dashboard/scan/new')} />
       </div>
     );
   }
@@ -310,7 +310,7 @@ export default function ScanProgressPage() {
       </div>
 
       <div className="scan-progress-actions animate-fade-up stagger-5">
-        <Link to="/scan/new" className="btn btn-secondary">New Scan</Link>
+        <Link to="/dashboard/scan/new" className="btn btn-secondary">New Scan</Link>
         {['queued', 'in_progress', 'running'].includes(status) && (
           <button className="btn btn-danger" onClick={() => backendApi.cancelScan(scanId)}>
             Cancel Scan
@@ -319,13 +319,13 @@ export default function ScanProgressPage() {
         {['failed', 'canceled'].includes(status) && (
           <button className="btn btn-primary" onClick={async () => {
             const retry = await backendApi.retryScan(scanId);
-            navigate(`/scan/progress/${retry.scan_id}`, { state: { scanId: retry.scan_id, target, scanType } });
+            navigate(`/dashboard/scan/progress/${retry.scan_id}`, { state: { scanId: retry.scan_id, target, scanType } });
           }}>
             Retry Scan
           </button>
         )}
         {status === 'completed' ? (
-          <Link to={`/scan/results/${scanId}`} className="btn btn-primary">
+          <Link to={`/dashboard/scan/results/${scanId}`} className="btn btn-primary">
             View Results <ArrowRight size={14} />
           </Link>
         ) : (

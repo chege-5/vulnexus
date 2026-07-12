@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Scan, Globe, Shield, Zap, Server, FileSearch,
-  ChevronRight, Loader, Upload, Github, RefreshCw, Link2, Lock, Network, SearchCode, ListChecks, BrainCircuit
+  ChevronRight, Loader, Upload, Github, RefreshCw, Link2, Lock, Network, SearchCode, ListChecks, BrainCircuit, CheckCircle2, AlertTriangle
 } from 'lucide-react';
 import DomainInput from '../../components/DomainInput/DomainInput';
 import UploadBox from '../../components/UploadBox/UploadBox';
@@ -44,7 +44,7 @@ const scannerStacks = {
 
 export default function NewScan() {
   const navigate = useNavigate();
-  const { beginOAuth } = useAuth();
+  const { beginOAuth, user } = useAuth();
   const [targets, setTargets] = useState([]);
   const [uploadFile, setUploadFile] = useState(null);
   const [selectedType, setSelectedType] = useState('url');
@@ -78,6 +78,13 @@ export default function NewScan() {
   }, [repositoryOptions, selectedOrg]);
 
   const canLaunch = isFileMode ? !!uploadFile : isGitHubMode ? !!githubConnection?.connected && !!selectedOrg && !!selectedRepo && !!selectedBranch : targets.length > 0;
+  const reviewTarget = isFileMode ? uploadFile?.name : isGitHubMode ? `${selectedOrg || 'Organization'}/${selectedRepo || 'Repository'}${selectedFolder ? `/${selectedFolder}` : ''}` : targets[0];
+  const estimatedCoverage = isFileMode
+    ? 'Secrets, dependencies, compliance, AI risk'
+    : isGitHubMode
+      ? 'Repository, branch, dependencies, secrets, compliance'
+      : 'DNS, TLS, headers, crawler, reputation, compliance';
+  const broadScope = isGitHubMode && !selectedFolder;
   const launchLogs = useMemo(() => {
     const stack = scannerStacks[activeType.mode] || scannerStacks.url;
     const prefix = isFileMode
@@ -178,7 +185,7 @@ export default function NewScan() {
         scanType = 'url';
       }
 
-      navigate(`/scan/progress/${response.scan_id}`, {
+      navigate(`/dashboard/scan/progress/${response.scan_id}`, {
         state: { scanId: response.scan_id, target, scanType },
       });
     } catch (err) {
@@ -370,8 +377,16 @@ export default function NewScan() {
         </div>
         </div>
 
-        <div className="card animate-fade-up stagger-4">
-          <h3 className="card-title">Review</h3>
+        <div className="card animate-fade-up stagger-4 launch-review-card">
+          <div className="review-title-row">
+            <div>
+              <span className="page-kicker">Final confirmation</span>
+              <h3 className="card-title">Ready to Launch Review</h3>
+            </div>
+            <span className={`review-readiness ${canLaunch ? 'is-ready' : ''}`}>
+              {canLaunch ? 'Ready' : 'Needs target'}
+            </span>
+          </div>
           <div className="config-grid">
             <div className="form-group">
               <label className="form-label">Scan Name (optional)</label>
@@ -382,6 +397,35 @@ export default function NewScan() {
                 placeholder="e.g., Weekly Production Scan"
               />
             </div>
+          </div>
+          <div className="launch-review-grid">
+            <div><span>Asset type</span><strong>{activeType.name}</strong></div>
+            <div><span>Target</span><strong>{reviewTarget || 'Add a target to continue'}</strong></div>
+            <div><span>Scan profile</span><strong>{activeType.desc}</strong></div>
+            <div><span>Estimated time</span><strong>{activeType.time}</strong></div>
+            <div><span>Coverage</span><strong>{estimatedCoverage}</strong></div>
+            <div><span>Authentication</span><strong>{isGitHubMode ? (githubConnection?.connected ? 'GitHub connected' : 'Connection required') : 'Unauthenticated scan'}</strong></div>
+            <div><span>Created by</span><strong>{user?.email || user?.name || 'Current user'}</strong></div>
+            <div><span>Report output</span><strong>Audit report after completion</strong></div>
+          </div>
+          {broadScope && (
+            <div className="scope-warning" role="status">
+              <AlertTriangle size={15} /> Repository-wide scope selected. Add a folder path if you want a narrower targeted scan.
+            </div>
+          )}
+          <div className="launch-checklist">
+            {[
+              ['Target confirmed', !!reviewTarget],
+              ['Scope reviewed', true],
+              ['Authorization confirmed', true],
+              ['Scan profile selected', !!selectedType],
+              ['Report will be generated after scan', true],
+            ].map(([label, ready]) => (
+              <div key={label} className={ready ? 'ready' : ''}>
+                <CheckCircle2 size={14} />
+                <span>{label}</span>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -397,12 +441,13 @@ export default function NewScan() {
             {launching ? (
               <><Loader size={18} className="spin" /> Launching Scan...</>
             ) : (
-              <><Scan size={18} /> Launch Scan <ChevronRight size={16} /></>
+              <><Scan size={18} /> Launch Security Scan <ChevronRight size={16} /></>
             )}
           </button>
+          <p className="launch-hint">Only scan assets you own or are authorized to test.</p>
           {!canLaunch && (
             <p className="launch-hint">
-              {isFileMode ? 'Upload a file to begin' : 'Add at least one target to begin'}
+              {isFileMode ? 'Upload a file to begin' : isGitHubMode ? 'Connect GitHub and select repository scope to begin' : 'Add at least one target to begin'}
             </p>
           )}
         </div>

@@ -1,82 +1,124 @@
 import { useMemo, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import {
-  Eye, EyeOff, Lock, Mail, User, Phone, ArrowRight,
-  Loader, Check, Chrome, Github, ShieldCheck, ScanSearch, FileCheck2
-} from 'lucide-react';
-import logo from '../../assets/logo.png';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, ArrowRight, BriefcaseBusiness, Building2, Check, Eye, EyeOff, Loader, Lock, Mail, Phone, Shield, Target, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useTypingEffect } from '../../hooks/useApi';
+import {
+  AuthCard,
+  AuthInput,
+  AuthLayout,
+  ErrorAlert,
+  MFASetupPrompt,
+  OAuthButtons,
+  PasswordStrengthMeter,
+  StepIndicator,
+  VerificationPrompt,
+  WorkspaceSelect,
+} from '../../components/Auth/AuthComponents';
+import { mapAuthError, passwordRules } from '../../components/Auth/authUtils';
 import '../Login/Login.css';
 import './Signup.css';
 
-const passwordRules = [
-  { id: 'length', label: 'At least 10 characters', test: (value) => value.length >= 10 },
-  { id: 'lower', label: 'One lowercase letter', test: (value) => /[a-z]/.test(value) },
-  { id: 'upper', label: 'One uppercase letter', test: (value) => /[A-Z]/.test(value) },
-  { id: 'number', label: 'One number', test: (value) => /\d/.test(value) },
-  { id: 'symbol', label: 'One symbol', test: (value) => /[^A-Za-z0-9]/.test(value) },
-];
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const defaultMetadata = {
+  phone: '',
+  carrier: '',
+  fav_programming_languages: [],
+  company: '',
+  job_role: '',
+  security_focus: '',
+  subscription_tier: 'free',
+};
 
 export default function Signup() {
   const { signUp, beginOAuth } = useAuth();
   const navigate = useNavigate();
 
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [step, setStep] = useState(1);
+  const [screen, setScreen] = useState('form');
+  const [resendLoading, setResendLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
-  const { displayed, done } = useTypingEffect('Create an account and configure your platform.', 45);
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    phone: '',
+    company: '',
+    job_role: '',
+    security_focus: '',
+    subscription_tier: 'free',
+  });
 
-  const emailInvalid = email.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const ruleStates = useMemo(() => passwordRules.map((rule) => ({ ...rule, met: rule.test(password) })), [password]);
+  const updateField = (field, value) => {
+    setForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const emailInvalid = form.email.length > 0 && !emailPattern.test(form.email);
+  const passwordsMismatch = form.confirmPassword.length > 0 && form.password !== form.confirmPassword;
+  const ruleStates = useMemo(() => passwordRules.map((rule) => ({ ...rule, met: rule.test(form.password) })), [form.password]);
   const allPasswordRulesMet = ruleStates.every((rule) => rule.met);
-  const showPasswordPanel = password.length > 0 && ruleStates.some((rule) => !rule.met);
-  const passwordsMismatch = confirmPassword.length > 0 && password !== confirmPassword;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
+  const buildMetadata = (includeWorkspace = true) => ({
+    name: form.name.trim(),
+    ...defaultMetadata,
+    ...(includeWorkspace ? {
+      phone: form.phone.trim(),
+      company: form.company.trim(),
+      job_role: form.job_role,
+      security_focus: form.security_focus,
+      subscription_tier: form.subscription_tier || 'free',
+    } : {}),
+  });
 
-    if (!name || !email || !phone || !password || !confirmPassword) {
-      setError('Please fill in all account details');
-      return;
+  const validateStepOne = () => {
+    if (!form.name.trim() || !form.email.trim() || !form.password || !form.confirmPassword) {
+      setError('Please complete the required account details.');
+      return false;
     }
     if (emailInvalid) {
-      setError('Please enter a valid email address');
-      return;
+      setError('Please enter a valid email address.');
+      return false;
     }
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
+    if (form.password !== form.confirmPassword) {
+      setError('Passwords do not match.');
+      return false;
     }
     if (!allPasswordRulesMet) {
-      setError('Password must meet the security requirements');
+      setError('Password must meet the security requirements.');
+      return false;
+    }
+    if (!termsAccepted) {
+      setError('You must agree to the Terms of Service and Privacy Policy.');
+      return false;
+    }
+    return true;
+  };
+
+  const goToWorkspaceStep = (event) => {
+    event.preventDefault();
+    setError('');
+    if (validateStepOne()) setStep(2);
+  };
+
+  const createAccount = async (includeWorkspace = true) => {
+    setError('');
+    if (!validateStepOne()) {
+      setStep(1);
       return;
     }
 
     setLoading(true);
     try {
-      await signUp(email, password, {
-        name,
-        phone,
-        carrier: '',
-        fav_programming_languages: [],
-        company: '',
-        job_role: '',
-        security_focus: '',
-        subscription_tier: 'free'
-      }, { remember: true });
-      setSuccess(true);
+      await signUp(form.email, form.password, buildMetadata(includeWorkspace), { remember: true });
+      setScreen('verification');
     } catch (err) {
-      setError(err.message || 'Failed to create account');
+      setError(mapAuthError(err, 'Unable to create account. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -88,158 +130,199 @@ export default function Signup() {
     try {
       await beginOAuth(provider, 'signup');
     } catch (err) {
-      setError(err.message || `Failed to start ${provider} sign-up`);
+      setError(mapAuthError(err, `Unable to start ${provider} sign-up. Please try again.`));
       setOauthLoading('');
     }
   };
 
-  if (success) {
+  const handleResendVerification = async () => {
+    setResendLoading(true);
+    try {
+      await Promise.resolve();
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
+  const showMfaPrompt = () => setScreen('mfa');
+  const goDashboard = () => navigate('/dashboard');
+
+  if (screen === 'verification') {
     return (
-      <div className="login-page">
-        <div className="login-bg-gradient" />
-        <div className="login-container signup-success-container">
-          <div className="signup-success-panel">
-            <img src={logo} alt="Vulnexus logo" className="signup-success-logo" />
-            <Check size={42} className="success-icon-anim" />
-            <h1>Account created</h1>
-            <p>Welcome, {name}. Your dashboard is ready, and you can finish workspace details next.</p>
-            <button type="button" className="btn btn-primary btn-lg" onClick={() => navigate('/dashboard')}>
-              Go to Dashboard <ArrowRight size={16} />
-            </button>
-          </div>
-        </div>
-      </div>
+      <VerificationPrompt
+        email={form.email}
+        onResend={handleResendVerification}
+        onDashboard={showMfaPrompt}
+        onSkip={showMfaPrompt}
+        resendLoading={resendLoading}
+      />
+    );
+  }
+
+  if (screen === 'mfa') {
+    return (
+      <MFASetupPrompt
+        onEnable={goDashboard}
+        onLater={goDashboard}
+        onSkip={goDashboard}
+      />
     );
   }
 
   return (
-    <div className="login-page">
-      <div className="login-bg-gradient" />
-      <div className="login-container signup-container">
-        <div className="auth-mobile-brand">
-          <img src={logo} alt="Vulnexus logo" />
-          <div>
-            <strong>Vulnexus</strong>
-            <span>Create account</span>
-          </div>
+    <AuthLayout mode="signup" tagline="Create a secure workspace profile, then invite deeper controls as your team scales.">
+      <AuthCard className="signup-card">
+        <StepIndicator step={step} />
+
+        <div className="auth-card-heading">
+          <p className="auth-kicker">Secure onboarding</p>
+          <h2>{step === 1 ? 'Create your account' : 'Workspace setup'}</h2>
+          <p>{step === 1 ? 'Start with the details required to protect access.' : 'Add optional context for your security workspace.'}</p>
         </div>
 
-        <div className="login-branding">
-          <div className="login-logo">
-            <img src={logo} alt="Vulnexus logo" className="login-logo-img" />
-          </div>
-          <h1 className="login-brand-title">Vulnexus</h1>
-          <p className="login-tagline">
-            {displayed}
-            {!done && <span className="typing-cursor">|</span>}
-          </p>
-          <div className="login-features">
-            <div className="login-feature">
-              <ShieldCheck size={16} className="feature-icon" />
-              <span>Real-time threat detection</span>
-            </div>
-            <div className="login-feature">
-              <ScanSearch size={16} className="feature-icon" />
-              <span>Automated vulnerability scanning</span>
-            </div>
-            <div className="login-feature">
-              <FileCheck2 size={16} className="feature-icon" />
-              <span>Guided workspace setup</span>
-            </div>
-          </div>
-        </div>
+        <ErrorAlert message={error} />
 
-        <div className="login-form-wrapper signup-form-wrapper">
-          <form className="login-form signup-form" onSubmit={handleSubmit}>
-            <div className="signup-steps-header compact">
-              <div className="step-dot active">1</div>
-              <div className="step-connector"><div className="connector-progress" style={{ width: '100%' }} /></div>
-              <div className="step-dot muted">2</div>
-            </div>
+        {step === 1 ? (
+          <form className="auth-form signup-step" onSubmit={goToWorkspaceStep}>
+            <AuthInput
+              id="name"
+              label="Full name"
+              type="text"
+              value={form.name}
+              onChange={(event) => updateField('name', event.target.value)}
+              placeholder="Jane Doe"
+              autoComplete="name"
+              icon={User}
+            />
 
-            <h2 className="login-form-title">Create an Account</h2>
-            <p className="login-form-subtitle">Start with the details required to secure your workspace.</p>
+            <AuthInput
+              id="signup-email"
+              label="Email"
+              type="email"
+              value={form.email}
+              onChange={(event) => updateField('email', event.target.value)}
+              placeholder="you@company.com"
+              autoComplete="email"
+              icon={Mail}
+              invalid={emailInvalid}
+              hint={emailInvalid ? 'Enter a valid email address.' : ''}
+            />
 
-            {error && <div className="login-error animate-shake" role="alert">{error}</div>}
+            <AuthInput
+              id="signup-password"
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              value={form.password}
+              onChange={(event) => updateField('password', event.target.value)}
+              placeholder="Create a password"
+              autoComplete="new-password"
+              icon={Lock}
+              action={(
+                <button
+                  type="button"
+                  className="auth-input-action"
+                  onClick={() => setShowPassword((current) => !current)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
+              )}
+            />
+            <PasswordStrengthMeter password={form.password} ruleStates={ruleStates} />
 
-            <div className="step-content animate-fade-right">
-              <div className="form-group">
-                <label className="form-label" htmlFor="name">Full Name</label>
-                <div className="form-input-wrapper">
-                  <User size={16} className="form-input-icon" />
-                  <input id="name" type="text" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Doe" className="form-input has-icon" autoComplete="name" />
-                </div>
-              </div>
+            <AuthInput
+              id="confirmPassword"
+              label="Confirm password"
+              type={showPassword ? 'text' : 'password'}
+              value={form.confirmPassword}
+              onChange={(event) => updateField('confirmPassword', event.target.value)}
+              placeholder="Confirm your password"
+              autoComplete="new-password"
+              icon={Lock}
+              invalid={passwordsMismatch}
+              hint={passwordsMismatch ? 'Passwords do not match.' : ''}
+            />
 
-              <div className="form-group">
-                <label className="form-label" htmlFor="signup-email">Email</label>
-                <div className="form-input-wrapper">
-                  <Mail size={16} className="form-input-icon" />
-                  <input id="signup-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" className={`form-input has-icon${emailInvalid ? ' input-invalid' : ''}`} autoComplete="email" />
-                </div>
-                {emailInvalid && <span className="field-hint danger">Enter a valid email address.</span>}
-              </div>
+            <label className="auth-checkbox terms-checkbox">
+              <input type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} />
+              <span className="checkbox-visual" aria-hidden="true"><Check size={12} /></span>
+              <span>I agree to the <Link to="/legal/terms" className="auth-link">Terms of Service</Link> and <Link to="/legal/privacy-policy" className="auth-link">Privacy Policy</Link>.</span>
+            </label>
 
-              <div className="form-group">
-                <label className="form-label" htmlFor="phone">Phone Number</label>
-                <div className="form-input-wrapper">
-                  <Phone size={16} className="form-input-icon" />
-                  <input id="phone" type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+254 700 000 000" className="form-input has-icon" autoComplete="tel" />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="signup-password">Password</label>
-                <div className="form-input-wrapper">
-                  <Lock size={16} className="form-input-icon" />
-                  <input id="signup-password" type={showPassword ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Create a password" className="form-input has-icon" autoComplete="new-password" />
-                  <button type="button" className="form-input-action" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                {showPasswordPanel && (
-                  <div className="password-requirements" role="status">
-                    {ruleStates.map((rule) => (
-                      <span key={rule.id} className={rule.met ? 'met' : ''}>
-                        <Check size={12} /> {rule.label}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="confirmPassword">Confirm Password</label>
-                <div className="form-input-wrapper">
-                  <Lock size={16} className="form-input-icon" />
-                  <input id="confirmPassword" type={showPassword ? 'text' : 'password'} required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm your password" className={`form-input has-icon${passwordsMismatch ? ' input-invalid' : ''}`} autoComplete="new-password" />
-                </div>
-                {passwordsMismatch && <span className="field-hint danger">Passwords do not match.</span>}
-              </div>
-
-              <button type="submit" className="btn btn-primary btn-lg login-btn mt-2" disabled={loading}>
-                {loading ? <><Loader size={18} className="spin" /> Creating account...</> : <>Create Account <ArrowRight size={16} /></>}
-              </button>
-
-              <div className="oauth-block oauth-block-after">
-                <div className="oauth-divider"><span>Or continue with</span></div>
-                <div className="oauth-grid">
-                  <button type="button" className="btn oauth-btn oauth-google" onClick={() => handleOAuth('google')} disabled={!!oauthLoading}>
-                    <Chrome size={16} /> {oauthLoading === 'google' ? 'Connecting...' : 'Google'}
-                  </button>
-                  <button type="button" className="btn oauth-btn oauth-github" onClick={() => handleOAuth('github')} disabled={!!oauthLoading}>
-                    <Github size={16} /> {oauthLoading === 'github' ? 'Connecting...' : 'GitHub'}
-                  </button>
-                </div>
-              </div>
-
-              <p className="login-footer-text">
-                Already have an account? <Link to="/login" className="form-link">Sign in instead</Link>
-              </p>
-            </div>
+            <button type="submit" className="btn btn-primary btn-lg auth-primary-btn" disabled={!termsAccepted || loading}>
+              Continue <ArrowRight size={17} />
+            </button>
           </form>
-        </div>
-      </div>
-    </div>
+        ) : (
+          <form className="auth-form signup-step" onSubmit={(event) => { event.preventDefault(); createAccount(true); }}>
+            <AuthInput
+              id="phone"
+              label="Phone number"
+              type="tel"
+              value={form.phone}
+              onChange={(event) => updateField('phone', event.target.value)}
+              placeholder="+254 700 000 000"
+              autoComplete="tel"
+              icon={Phone}
+              hint="Optional. Useful for account recovery workflows."
+            />
+
+            <AuthInput
+              id="company"
+              label="Company name"
+              type="text"
+              value={form.company}
+              onChange={(event) => updateField('company', event.target.value)}
+              placeholder="Acme Security"
+              autoComplete="organization"
+              icon={Building2}
+            />
+
+            <WorkspaceSelect id="job-role" label="Job role" value={form.job_role} onChange={(event) => updateField('job_role', event.target.value)} icon={BriefcaseBusiness}>
+              <option value="">Select role</option>
+              <option value="security_engineer">Security Engineer</option>
+              <option value="soc_analyst">SOC Analyst</option>
+              <option value="developer">Developer</option>
+              <option value="ciso">CISO / Security Leader</option>
+              <option value="founder">Founder / Operator</option>
+            </WorkspaceSelect>
+
+            <WorkspaceSelect id="security-focus" label="Security focus" value={form.security_focus} onChange={(event) => updateField('security_focus', event.target.value)} icon={Target}>
+              <option value="">Select focus</option>
+              <option value="web_app_security">Web app security</option>
+              <option value="cloud_security">Cloud security</option>
+              <option value="compliance">Compliance reporting</option>
+              <option value="attack_surface">Attack surface management</option>
+              <option value="devsecops">DevSecOps</option>
+            </WorkspaceSelect>
+
+            <WorkspaceSelect id="subscription-tier" label="Subscription tier" value={form.subscription_tier} onChange={(event) => updateField('subscription_tier', event.target.value)} icon={Shield}>
+              <option value="free">Free</option>
+              <option value="team">Team</option>
+              <option value="enterprise">Enterprise</option>
+            </WorkspaceSelect>
+
+            <div className="signup-actions">
+              <button type="button" className="btn btn-secondary btn-lg" onClick={() => { setError(''); setStep(1); }}>
+                <ArrowLeft size={17} /> Back
+              </button>
+              <button type="submit" className="btn btn-primary btn-lg" disabled={loading}>
+                {loading ? <><Loader size={18} className="spin" /> Creating...</> : <>Create Account <ArrowRight size={17} /></>}
+              </button>
+            </div>
+
+            <button type="button" className="btn btn-ghost signup-skip" onClick={() => createAccount(false)} disabled={loading}>
+              Skip for now
+            </button>
+          </form>
+        )}
+
+        <OAuthButtons onOAuth={handleOAuth} loadingProvider={oauthLoading} />
+
+        <p className="auth-footer-text">
+          Already have an account? <Link to="/login" className="auth-link">Sign in</Link>
+        </p>
+      </AuthCard>
+    </AuthLayout>
   );
 }

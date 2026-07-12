@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { authStorage, backendApi } from '../api/backendApi';
 
 const AuthContext = createContext();
@@ -6,7 +6,18 @@ const AuthContext = createContext();
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => authStorage.getUser());
   const [token, setToken] = useState(() => authStorage.getToken());
-  const loading = false;
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    backendApi.refreshSession()
+      .then((session) => {
+        if (session) {
+          setToken(session.token);
+          setUser(session.user);
+        }
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   const completeSession = (session, options = {}) => {
     authStorage.setSession(session.token, session.user, {
@@ -29,16 +40,22 @@ export function AuthProvider({ children }) {
   };
 
   const beginOAuth = async (provider, flow = 'login') => {
-    const authorizationUrl = await backendApi.getOAuthStartUrl(provider, flow);
+    const redirectUri = `${window.location.origin}/auth/${provider}/callback`;
+    const authorizationUrl = await backendApi.getOAuthStartUrl(provider, flow, redirectUri);
     window.location.assign(authorizationUrl);
   };
 
-  const completeOAuthCallback = async (provider, code, redirectUri) => {
-    const session = await backendApi.exchangeOAuthCode(provider, code, redirectUri);
+  const completeOAuthCallback = async (provider, code, redirectUri, state) => {
+    const session = await backendApi.exchangeOAuthCode(provider, code, redirectUri, state);
     return completeSession(session);
   };
 
   const signOut = async () => {
+    try {
+      await backendApi.logout();
+    } catch {
+      // The local session must still be cleared if the server is unavailable.
+    }
     authStorage.clear();
     setUser(null);
     setToken(null);
@@ -48,7 +65,6 @@ export function AuthProvider({ children }) {
     const merged = { ...user, ...updatedFields };
     authStorage.setSession(token, merged, {
       refreshToken: authStorage.getRefreshToken(),
-      remember: !!localStorage.getItem('vulnexus_remember_until'),
     });
     setUser(merged);
   };

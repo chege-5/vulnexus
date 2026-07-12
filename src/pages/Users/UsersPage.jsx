@@ -1,12 +1,13 @@
 import { Link, Navigate } from 'react-router-dom';
 import { Users, Shield, Activity, Settings } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { isAdminUser } from '../../utils/authRoles';
 import './UsersPage.css';
 
 export default function UsersPage() {
   const { user } = useAuth();
 
-  if (user?.role === 'admin') {
+  if (isAdminUser(user)) {
     return <Navigate to="/admin" replace />;
   }
 
@@ -60,7 +61,7 @@ export default function UsersPage() {
               Team and user administration is handled through the Admin Portal.
               Contact your organization admin to manage team members.
             </p>
-            <Link to="/settings" className="btn btn-secondary">
+            <Link to="/dashboard/settings" className="btn btn-secondary">
               <Settings size={14} /> Account Settings
             </Link>
           </div>

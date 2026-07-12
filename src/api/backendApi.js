@@ -1,26 +1,12 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1').replace(/\/$/, '');
-const TOKEN_KEY = 'vulnexus_access_token';
-const REFRESH_TOKEN_KEY = 'vulnexus_refresh_token';
-const USER_KEY = 'vulnexus_user';
-const REMEMBER_UNTIL_KEY = 'vulnexus_remember_until';
-const REMEMBER_DURATION_MS = 2 * 24 * 60 * 60 * 1000;
-
-function getStorageToken(key) {
-  return localStorage.getItem(key) || sessionStorage.getItem(key);
-}
-
-function isRememberExpired() {
-  const raw = localStorage.getItem(REMEMBER_UNTIL_KEY);
-  return !!raw && Number(raw) < Date.now();
-}
+// Access tokens are deliberately memory-only. The long-lived refresh token is
+// an HttpOnly, Secure cookie managed by the API and cannot be read by scripts.
+let accessToken = null;
+let currentUser = null;
 
 function clearStoredSession() {
-  [localStorage, sessionStorage].forEach((storage) => {
-    storage.removeItem(TOKEN_KEY);
-    storage.removeItem(REFRESH_TOKEN_KEY);
-    storage.removeItem(USER_KEY);
-    storage.removeItem(REMEMBER_UNTIL_KEY);
-  });
+  accessToken = null;
+  currentUser = null;
 }
 
 class ApiError extends Error {
@@ -31,24 +17,21 @@ class ApiError extends Error {
 }
 
 async function request(path, options = {}) {
-  if (isRememberExpired()) {
-    clearStoredSession();
-  }
-
-  const token = getStorageToken(TOKEN_KEY);
+  const token = accessToken;
   const headers = {
     ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
 
-  let response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+  let response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers, credentials: 'include' });
   if (response.status === 401 && token && !options.skipRefresh) {
     const refreshedToken = await refreshSession();
     if (refreshedToken) {
       response = await fetch(`${API_BASE_URL}${path}`, {
         ...options,
         headers: { ...headers, Authorization: `Bearer ${refreshedToken}` },
+        credentials: 'include',
       });
     }
   }
@@ -66,21 +49,16 @@ async function request(path, options = {}) {
 }
 
 async function refreshSession() {
-  const refreshToken = getStorageToken(REFRESH_TOKEN_KEY);
-  if (!refreshToken || isRememberExpired()) return null;
-
   const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh_token: refreshToken }),
+    body: JSON.stringify({}),
+    credentials: 'include',
   });
   if (!response.ok) return null;
 
   const data = await response.json();
-  authStorage.setSession(data.access_token, data.user, {
-    refreshToken: data.refresh_token,
-    remember: localStorage.getItem(REMEMBER_UNTIL_KEY) != null,
-  });
+  authStorage.setSession(data.access_token, data.user);
   return data.access_token;
 }
 
@@ -96,52 +74,39 @@ function downloadBlob(blob, filename) {
 }
 
 export const authStorage = {
-  getToken: () => {
-    if (isRememberExpired()) {
-      clearStoredSession();
-      return null;
-    }
-    return getStorageToken(TOKEN_KEY);
+  getToken: () => accessToken,
+  getRefreshToken: () => null,
+  setSession(token, user) {
+    accessToken = token || null;
+    currentUser = user || null;
   },
-  getRefreshToken: () => getStorageToken(REFRESH_TOKEN_KEY),
-  setSession(token, user, options = {}) {
-    const { remember = false, refreshToken = '' } = options;
-    const storage = remember ? localStorage : sessionStorage;
-
-    clearStoredSession();
-    storage.setItem(TOKEN_KEY, token);
-    storage.setItem(USER_KEY, JSON.stringify(user));
-    if (refreshToken) storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
-    if (remember) storage.setItem(REMEMBER_UNTIL_KEY, String(Date.now() + REMEMBER_DURATION_MS));
-  },
-  getUser() {
-    if (isRememberExpired()) {
-      clearStoredSession();
-      return null;
-    }
-    const raw = getStorageToken(USER_KEY);
-    if (!raw) return null;
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return null;
-    }
-  },
+  getUser: () => currentUser,
   clear() {
     clearStoredSession();
   },
 };
 
 export const backendApi = {
-  async getOAuthStartUrl(provider, flow = 'login') {
-    const data = await request(`/auth/${provider}/start?flow=${encodeURIComponent(flow)}`, {
+  async refreshSession() {
+    const refreshedToken = await refreshSession();
+    if (!refreshedToken) return null;
+    return { token: refreshedToken, user: authStorage.getUser() };
+  },
+
+  async getOAuthStartUrl(provider, flow = 'login', redirectUri = '') {
+    const params = new URLSearchParams({ flow });
+    if (redirectUri) params.set('redirect_uri', redirectUri);
+    const data = await request(`/auth/${provider}/start?${params.toString()}`, {
       method: 'GET',
     });
     return data.authorization_url;
   },
 
-  async exchangeOAuthCode(provider, code, redirectUri) {
-    const state = new URLSearchParams(window.location.search).get('state');
+  logout() {
+    return request('/auth/logout', { method: 'POST', skipRefresh: true });
+  },
+
+  async exchangeOAuthCode(provider, code, redirectUri, state) {
     const data = await request(`/auth/${provider}/exchange`, {
       method: 'POST',
       body: JSON.stringify({ code, state, redirect_uri: redirectUri }),
@@ -265,7 +230,7 @@ export const backendApi = {
   },
 
   getScanWebSocketUrl(scanId) {
-    const token = localStorage.getItem(TOKEN_KEY);
+    const token = authStorage.getToken();
     const wsBase = API_BASE_URL.replace(/^http/, 'ws').replace(/\/api\/v1$/, '');
     return `${wsBase}/api/v1/ws/scan-status/${encodeURIComponent(scanId)}?token=${encodeURIComponent(token || '')}`;
   },
@@ -297,7 +262,7 @@ export const backendApi = {
   },
 
   async downloadVulnerabilityReport(id, format = 'pdf') {
-    const token = localStorage.getItem(TOKEN_KEY);
+    const token = authStorage.getToken();
     const response = await fetch(`${API_BASE_URL}/vulnerabilities/${id}/report?format=${encodeURIComponent(format)}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
@@ -319,7 +284,7 @@ export const backendApi = {
   },
 
   async downloadReport(scanId, format = 'pdf') {
-    const token = localStorage.getItem(TOKEN_KEY);
+    const token = authStorage.getToken();
     const response = await fetch(`${API_BASE_URL}/report/${scanId}?format=${encodeURIComponent(format)}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });

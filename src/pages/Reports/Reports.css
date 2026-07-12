@@ -9,6 +9,7 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: var(--space-md);
+  flex-wrap: wrap;
   opacity: 0;
 }
 
@@ -16,11 +17,12 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  flex-wrap: wrap;
 }
 
 .reports-summary-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: var(--space-md);
 }
 
@@ -46,6 +48,37 @@
 
 .report-summary-card strong {
   font-size: var(--font-size-lg);
+}
+
+.reports-filter-bar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 180px auto;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  background: rgba(13, 26, 43, 0.78);
+}
+
+.report-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+}
+
+.report-search svg {
+  color: var(--text-tertiary);
+}
+
+.report-search input {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  padding-left: 0;
 }
 
 .reports-grid {
@@ -92,6 +125,23 @@
   flex-wrap: wrap;
 }
 
+.report-evidence-row {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-top: var(--space-sm);
+}
+
+.report-evidence-row span {
+  padding: 4px 8px;
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  background: rgba(125, 180, 226, 0.06);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+}
+
 .report-meta-item {
   display: flex;
   align-items: center;
@@ -123,6 +173,93 @@
 .report-btns {
   display: flex;
   gap: var(--space-sm);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.ai-report-btn {
+  border-color: rgba(125, 180, 226, 0.34);
+  background: rgba(125, 180, 226, 0.1);
+}
+
+.empty-state {
+  display: grid;
+  place-items: center;
+  gap: var(--space-md);
+  padding: var(--space-2xl);
+  border: 1px dashed var(--border-primary);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+}
+
+.report-preview-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(520px, calc(100vw - 18px));
+  height: 100vh;
+  z-index: var(--z-modal);
+  background: linear-gradient(180deg, rgba(9, 23, 37, 0.98), rgba(7, 17, 31, 0.98));
+  border-left: 1px solid var(--border-primary);
+  box-shadow: -24px 0 48px rgba(0, 0, 0, 0.32);
+  display: flex;
+  flex-direction: column;
+}
+
+.report-preview-header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--border-secondary);
+}
+
+.report-preview-header p,
+.report-preview-copy p {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.report-preview-body {
+  padding: var(--space-lg);
+  overflow-y: auto;
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.preview-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.preview-stat-grid div {
+  padding: var(--space-md);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  background: rgba(125, 180, 226, 0.06);
+}
+
+.preview-stat-grid span {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.preview-stat-grid strong {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.report-preview-copy {
+  padding: var(--space-lg);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  background: rgba(13, 26, 43, 0.78);
 }
 
 @media (max-width: 768px) {
@@ -136,6 +273,11 @@
     grid-template-columns: 1fr;
   }
 
+  .reports-filter-bar,
+  .preview-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
   .report-card {
     flex-direction: column;
     align-items: flex-start;
@@ -143,5 +285,9 @@
   .report-actions {
     align-items: flex-start;
     flex-direction: row;
+  }
+
+  .report-btns {
+    justify-content: flex-start;
   }
 }

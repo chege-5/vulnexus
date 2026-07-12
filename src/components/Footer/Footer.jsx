@@ -1,27 +1,58 @@
 import { Link } from 'react-router-dom';
+import { Activity, Bell, Clock3, FileText, History, LifeBuoy, ScanLine, Settings, ShieldCheck, User } from 'lucide-react';
 import logo from '../../assets/logo.png';
 import './Footer.css';
 
+const footerLinks = [
+  { to: '/dashboard/scan/new', label: 'New Scan', icon: ScanLine },
+  { to: '/dashboard/scans', label: 'History', icon: History },
+  { to: '/dashboard/vulnerabilities', label: 'Findings', icon: ShieldCheck },
+  { to: '/dashboard/reports', label: 'Reports', icon: FileText },
+  { to: '/dashboard/account', label: 'Account', icon: User },
+  { to: '/dashboard/notifications', label: 'Alerts', icon: Bell },
+  { to: '/dashboard/settings', label: 'Settings', icon: Settings },
+  { to: '/dashboard/help', label: 'Support', icon: LifeBuoy },
+];
+
 export default function Footer() {
+  const year = new Date().getFullYear();
+  const updatedAt = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
   return (
     <footer className="footer" role="contentinfo" aria-label="Footer">
       <div className="footer-left">
-        <img src={logo} alt="Vulnexus logo" className="footer-logo" />
-        <span>&copy; 2026 Vulnexus. All rights reserved.</span>
+        <Link to="/dashboard" className="footer-brand" aria-label="Vulnexus dashboard">
+          <img src={logo} alt="" className="footer-logo" />
+          <span>VulNexus</span>
+        </Link>
+        <span className="footer-copy">&copy; {year} Secure workspace access</span>
       </div>
-      <div className="footer-center">
-        <Link to="/legal/privacy-policy" className="footer-link">Privacy Policy</Link>
-        <span className="footer-dot">·</span>
-        <Link to="/legal/terms" className="footer-link">Terms of Service</Link>
-        <span className="footer-dot">·</span>
-        <Link to="/company/contact" className="footer-link">Contact</Link>
-      </div>
+
+      <nav className="footer-center" aria-label="Footer navigation">
+        {footerLinks.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Link key={item.to} to={item.to} className="footer-link">
+              <Icon size={14} />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
       <div className="footer-right">
         <span className="footer-status">
           <span className="status-dot online" />
-          All Systems Operational
+          Operational
         </span>
-        <span className="footer-version">v2.4.1</span>
+        <span className="footer-updated">
+          <Clock3 size={13} />
+          {updatedAt}
+        </span>
+        <span className="footer-signal">
+          <Activity size={13} />
+          Live telemetry
+        </span>
       </div>
     </footer>
   );

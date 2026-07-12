@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState, Suspense, lazy } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet, useLocation, useParams } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
-import Sidebar from './components/Sidebar/Sidebar';
-import Header from './components/Header/Header';
-import Footer from './components/Footer/Footer';
 import BackgroundFX from './components/BackgroundFX/BackgroundFX';
 import IntroLoader from './components/IntroLoader/IntroLoader';
 import PageTransitionLoader from './components/PageTransitionLoader/PageTransitionLoader';
 import { SkeletonPage } from './components/SkeletonLoader/SkeletonLoader';
 import { publicRoutes } from './pages/Marketing/marketingContent';
+import SuperAdminLayout from './layouts/admin/SuperAdminLayout';
+import UserLayout from './layouts/user/UserLayout';
+import { isAdminUser } from './utils/authRoles';
 
 /* Lazy-loaded pages */
 const Landing = lazy(() => import('./pages/Landing/Landing'));
@@ -43,48 +43,8 @@ function shouldShowIntro() {
   }
 }
 
-/* ─── Protected layout wrapper ─── */
-function AppLayout({ children }) {
-  const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-
-  return (
-    <div className="app-layout">
-      <Sidebar
-        collapsed={collapsed}
-        onCollapse={() => setCollapsed(c => !c)}
-        mobileOpen={mobileOpen}
-      />
-
-      {/* Mobile overlay backdrop */}
-      {mobileOpen && (
-        <div
-          className="sidebar-backdrop"
-          onClick={() => setMobileOpen(false)}
-          aria-hidden="true"
-        />
-      )}
-
-      <div
-        className={`app-main${collapsed ? ' sidebar-collapsed' : ''}`}
-      >
-        <Header
-          onToggleSidebar={() => setMobileOpen(o => !o)}
-          sidebarOpen={mobileOpen}
-        />
-        <main className="app-content">
-          <Suspense fallback={<SkeletonPage />}>
-            {children}
-          </Suspense>
-        </main>
-        <Footer />
-      </div>
-    </div>
-  );
-}
-
 /* ─── Auth guard ─── */
-function ProtectedRoute({ children }) {
+function ProtectedRoute() {
   const { user, loading } = useAuth();
   const location = useLocation();
 
@@ -96,10 +56,10 @@ function ProtectedRoute({ children }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  return <AppLayout>{children}</AppLayout>;
+  return <Outlet />;
 }
 
-function AdminRoute({ children }) {
+function AdminRoute() {
   const { user, loading } = useAuth();
   const location = useLocation();
 
@@ -111,11 +71,37 @@ function AdminRoute({ children }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (!['admin', 'super_admin'].includes(user.role)) {
+  if (!isAdminUser(user)) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return <AppLayout>{children}</AppLayout>;
+  return <Outlet />;
+}
+
+function UserRoute() {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return <SkeletonPage />;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (isAdminUser(user)) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return <Outlet />;
+}
+
+function LegacyScanRedirect({ type }) {
+  const { scanId, id } = useParams();
+  const identifier = scanId || id;
+  const target = identifier ? `/dashboard/${type}/${identifier}` : `/dashboard/${type}`;
+  return <Navigate to={target} replace />;
 }
 
 /* ─── Root App ─── */
@@ -202,23 +188,58 @@ export default function App() {
           />
         ))}
 
-        {/* Protected */}
-        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/scan/new" element={<ProtectedRoute><NewScan /></ProtectedRoute>} />
-        <Route path="/scan/progress" element={<ProtectedRoute><ScanProgressPage /></ProtectedRoute>} />
-        <Route path="/scan/progress/:scanId" element={<ProtectedRoute><ScanProgressPage /></ProtectedRoute>} />
-        <Route path="/scan/results" element={<ProtectedRoute><ScanResults /></ProtectedRoute>} />
-        <Route path="/scan/results/:scanId" element={<ProtectedRoute><ScanResults /></ProtectedRoute>} />
-        <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-        <Route path="/vulnerability" element={<ProtectedRoute><Vulnerabilities /></ProtectedRoute>} />
-        <Route path="/vulnerability/:id" element={<ProtectedRoute><VulnerabilityDetail /></ProtectedRoute>} />
-        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-        <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
-        <Route path="/history" element={<ProtectedRoute><ScanHistory /></ProtectedRoute>} />
-        <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-        <Route path="/help" element={<ProtectedRoute><Help /></ProtectedRoute>} />
-        <Route path="/pricing" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
-        <Route path="/admin" element={<AdminRoute><AdminPortal /></AdminRoute>} />
+        {/* Role-separated authenticated areas */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<UserRoute />}>
+            <Route path="/dashboard/*" element={<UserLayout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="scan/new" element={<NewScan />} />
+              <Route path="scan/progress" element={<ScanProgressPage />} />
+              <Route path="scan/progress/:scanId" element={<ScanProgressPage />} />
+              <Route path="scan/results" element={<ScanResults />} />
+              <Route path="scan/results/:scanId" element={<ScanResults />} />
+              <Route path="scans" element={<ScanHistory />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="vulnerabilities" element={<Vulnerabilities />} />
+              <Route path="vulnerabilities/:id" element={<VulnerabilityDetail />} />
+              <Route path="account" element={<UsersPage />} />
+              <Route path="notifications" element={<Notifications />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="help" element={<Help />} />
+              <Route path="billing" element={<SubscriptionPage />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Route>
+          </Route>
+
+          <Route element={<AdminRoute />}>
+            <Route path="/admin/*" element={<SuperAdminLayout />}>
+              <Route index element={<AdminPortal />} />
+              <Route path="users" element={<AdminPortal />} />
+              <Route path="roles" element={<AdminPortal />} />
+              <Route path="analytics" element={<AdminPortal />} />
+              <Route path="audit-logs" element={<AdminPortal />} />
+              <Route path="settings" element={<AdminPortal />} />
+              <Route path="notifications" element={<AdminPortal />} />
+              <Route path="*" element={<Navigate to="/admin" replace />} />
+            </Route>
+          </Route>
+        </Route>
+
+        {/* Legacy authenticated URLs */}
+        <Route path="/scan/new" element={<Navigate to="/dashboard/scan/new" replace />} />
+        <Route path="/scan/progress" element={<Navigate to="/dashboard/scan/progress" replace />} />
+        <Route path="/scan/progress/:scanId" element={<LegacyScanRedirect type="scan/progress" />} />
+        <Route path="/scan/results" element={<Navigate to="/dashboard/scan/results" replace />} />
+        <Route path="/scan/results/:scanId" element={<LegacyScanRedirect type="scan/results" />} />
+        <Route path="/reports" element={<Navigate to="/dashboard/reports" replace />} />
+        <Route path="/vulnerability" element={<Navigate to="/dashboard/vulnerabilities" replace />} />
+        <Route path="/vulnerability/:id" element={<LegacyScanRedirect type="vulnerabilities" />} />
+        <Route path="/settings" element={<Navigate to="/dashboard/settings" replace />} />
+        <Route path="/users" element={<Navigate to="/dashboard/account" replace />} />
+        <Route path="/history" element={<Navigate to="/dashboard/scans" replace />} />
+        <Route path="/notifications" element={<Navigate to="/dashboard/notifications" replace />} />
+        <Route path="/help" element={<Navigate to="/dashboard/help" replace />} />
+        <Route path="/pricing" element={<Navigate to="/dashboard/billing" replace />} />
 
         {/* Default redirect */}
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -177,6 +177,7 @@ code, pre {
 
 /* Layout */
 .app-layout {
+  --active-sidebar-width: var(--sidebar-width);
   display: flex;
   min-height: 100vh;
   position: relative;
@@ -199,15 +200,15 @@ code, pre {
   flex: 1;
   display: flex;
   flex-direction: column;
-  margin-left: var(--sidebar-width);
+  margin-left: 0;
   transition: margin-left var(--transition-base);
   min-height: 100vh;
   position: relative;
   z-index: 1;
 }
 
-.app-main.sidebar-collapsed {
-  margin-left: var(--sidebar-collapsed);
+.app-main.sidebar-open {
+  margin-left: var(--active-sidebar-width);
 }
 
 .app-content {
@@ -227,15 +228,6 @@ code, pre {
   inset: 0;
   pointer-events: none;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.012), transparent 18%, transparent 78%, rgba(255, 255, 255, 0.01));
-}
-
-/* Sidebar mobile backdrop */
-.sidebar-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 140;
-  backdrop-filter: blur(2px);
 }
 
 /* Page transitions */
@@ -384,9 +376,10 @@ code, pre {
 
 /* Responsive */
 @media (max-width: 1024px) {
-  .app-main {
-    margin-left: 0;
+  .app-layout {
+    --active-sidebar-width: 240px;
   }
+
   .app-content {
     padding: var(--space-md);
     padding-top: calc(var(--header-height) + var(--space-md));
@@ -394,6 +387,14 @@ code, pre {
 }
 
 @media (max-width: 768px) {
+  :root {
+    --footer-height: 60px;
+  }
+
+  .app-layout {
+    --active-sidebar-width: 220px;
+  }
+
   .app-content {
     padding: var(--space-sm);
     padding-top: calc(var(--header-height) + var(--space-sm));

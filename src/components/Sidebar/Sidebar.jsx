@@ -1,53 +1,50 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Scan, FileText, Bug, Settings,
-  Users, History, Bell, HelpCircle, ChevronLeft, ChevronRight,
-  CreditCard, Sliders, BrainCircuit
+  User, History, Bell, HelpCircle, CreditCard, X
 } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
 import logo from '../../assets/logo.png';
 import './Sidebar.css';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
-  { to: '/scan/new', icon: Scan, label: 'New Scan' },
-  { to: '/history', icon: History, label: 'Scans' },
-  { to: '/vulnerability', icon: Bug, label: 'Findings' },
-  { to: '/reports', icon: FileText, label: 'Reports' },
-  { to: '/vulnerability', icon: BrainCircuit, label: 'Intelligence' },
-  { to: '/users', icon: Users, label: 'Team' },
-  { to: '/notifications', icon: Bell, label: 'Alerts' },
+  { to: '/dashboard/scan/new', icon: Scan, label: 'New Scan' },
+  { to: '/dashboard/scans', icon: History, label: 'Scans' },
+  { to: '/dashboard/vulnerabilities', icon: Bug, label: 'Findings' },
+  { to: '/dashboard/reports', icon: FileText, label: 'Reports' },
+  { to: '/dashboard/account', icon: User, label: 'Account' },
+  { to: '/dashboard/notifications', icon: Bell, label: 'Alerts' },
   { divider: true },
-  { to: '/pricing', icon: CreditCard, label: 'Billing' },
-  { to: '/admin', icon: Sliders, label: 'Admin Portal', adminOnly: true },
+  { to: '/dashboard/billing', icon: CreditCard, label: 'Billing' },
   { divider: true },
-  { to: '/settings', icon: Settings, label: 'Settings' },
-  { to: '/help', icon: HelpCircle, label: 'Help' },
+  { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
+  { to: '/dashboard/help', icon: HelpCircle, label: 'Help' },
 ];
 
-export default function Sidebar({ collapsed, onCollapse, mobileOpen }) {
+export default function Sidebar({ open, onClose }) {
   const location = useLocation();
-  const { user } = useAuth();
-  const isAdmin = ['admin', 'super_admin'].includes(user?.role);
 
   return (
     <aside
-      className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}
+      className={`sidebar ${open ? 'open' : ''}`}
       role="navigation"
       aria-label="Main navigation"
+      aria-hidden={!open}
     >
       <div className="sidebar-header">
         <div className="sidebar-logo">
           <div className="logo-icon">
             <img src={logo} alt="Vulnexus logo" className="brand-logo-img" />
           </div>
-          {!collapsed && <span className="logo-text">Vulnexus</span>}
+          <span className="logo-text">Vulnexus</span>
         </div>
+        <button className="sidebar-close-btn" type="button" onClick={onClose} aria-label="Close sidebar">
+          <X size={18} />
+        </button>
       </div>
 
       <nav className="sidebar-nav">
         {navItems.map((item, i) => {
-          if (item.adminOnly && !isAdmin) return null;
           if (item.divider) return <div key={`d-${i}`} className="sidebar-divider" />;
           const Icon = item.icon;
           const isActive = location.pathname === item.to ||
@@ -57,27 +54,18 @@ export default function Sidebar({ collapsed, onCollapse, mobileOpen }) {
               key={item.to}
               to={item.to}
               className={`sidebar-item ${isActive ? 'active' : ''}`}
-              data-tooltip={collapsed ? item.label : undefined}
               aria-label={item.label}
               aria-current={isActive ? 'page' : undefined}
               style={{ animationDelay: `${i * 0.03}s` }}
+              onClick={onClose}
             >
               <Icon size={20} className="sidebar-icon" />
-              {!collapsed && <span className="sidebar-label">{item.label}</span>}
+              <span className="sidebar-label">{item.label}</span>
               {isActive && <div className="sidebar-active-indicator" />}
             </NavLink>
           );
         })}
       </nav>
-
-      <button
-        className="sidebar-collapse-btn"
-        onClick={onCollapse}
-        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-      >
-        {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-        {!collapsed && <span>Collapse</span>}
-      </button>
     </aside>
   );
 }

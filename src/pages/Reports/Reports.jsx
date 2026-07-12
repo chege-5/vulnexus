@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, Download, Eye, Calendar, HardDrive, Loader, ShieldCheck, Database } from 'lucide-react';
+import { FileText, Download, Eye, Calendar, HardDrive, Loader, ShieldCheck, Database, Bot, Settings2, Search, X, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useApi } from '../../hooks/useApi';
 import { backendApi } from '../../api/backendApi';
@@ -7,6 +7,11 @@ import { normalizeReport } from '../../api/normalizers';
 import { SkeletonPage } from '../../components/SkeletonLoader/SkeletonLoader';
 import ScanLoader from '../../components/ScanLoader/ScanLoader';
 import ErrorState from '../../components/ErrorState/ErrorState';
+import ViewModeToggle from '../../components/security/ViewModeToggle';
+import useViewMode from '../../components/security/useViewMode';
+import ReportBuilderDrawer from '../../components/security/ReportBuilderDrawer';
+import ReportAIExplainerDrawer from '../../components/security/ReportAIExplainerDrawer';
+import { SLABadge } from '../../components/security/SecurityBadges';
 import './Reports.css';
 
 const statusColors = {
@@ -23,6 +28,12 @@ export default function Reports() {
   const [downloading, setDownloading] = useState(null);
   const [reportFormat, setReportFormat] = useState('pdf');
   const [actionMessage, setActionMessage] = useState('');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [previewReport, setPreviewReport] = useState(null);
+  const [builderReport, setBuilderReport] = useState(null);
+  const [aiReport, setAiReport] = useState(null);
+  const [viewMode, setViewMode] = useViewMode('vulnexus.reports.viewMode');
   const activeReport = reports?.find((report) => report.id === downloading);
 
   if (loading) return <SkeletonPage />;
@@ -38,6 +49,17 @@ export default function Reports() {
       setDownloading(null);
     }
   };
+
+  const filteredReports = (reports || []).filter((report) => {
+    const matchesSearch = !search || `${report.name} ${report.target} ${report.type}`.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || report.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const readyCount = (reports || []).filter((report) => report.status === 'ready').length;
+  const generatingCount = (reports || []).filter((report) => report.status === 'generating').length;
+  const complianceCount = (reports || []).filter((report) => report.complianceMapped).length;
+  const overdueCount = (reports || []).reduce((sum, report) => sum + Number(report.overdueCount || 0), 0);
 
   return (
     <div className="reports-page">
@@ -57,17 +79,21 @@ export default function Reports() {
       <div className="reports-header animate-fade-up">
         <div>
           <span className="page-kicker">Audit library</span>
-          <h2 className="page-title">Reports</h2>
-          <p className="page-desc">Download audit-ready evidence packages from completed URL, file, and GitHub scans.</p>
+          <h2 className="page-title">Audit Report Library</h2>
+          <p className="page-desc">Build, preview, explain, and export audit-ready evidence from completed URL, file, and GitHub scans.</p>
         </div>
         <div className="reports-toolbar">
+          <ViewModeToggle value={viewMode} onChange={setViewMode} />
           <select value={reportFormat} onChange={(e) => setReportFormat(e.target.value)} className="report-format-select">
             <option value="pdf">PDF</option>
             <option value="html">HTML</option>
             <option value="json">JSON</option>
           </select>
-          <button className="btn btn-primary" onClick={() => navigate('/scan/new')}>
+          <button className="btn btn-primary" onClick={() => navigate('/dashboard/scan/new')}>
             New Scan
+          </button>
+          <button className="btn btn-secondary" onClick={() => setBuilderReport({ name: 'Custom Audit Report', id: null })}>
+            <Settings2 size={14} /> Build Report
           </button>
         </div>
       </div>
@@ -81,18 +107,46 @@ export default function Reports() {
         </div>
         <div className="report-summary-card">
           <ShieldCheck size={18} />
-          <span>Audit formats</span>
-          <strong>PDF / HTML</strong>
+          <span>Ready for download</span>
+          <strong>{readyCount}</strong>
         </div>
         <div className="report-summary-card">
           <Database size={18} />
-          <span>Machine export</span>
-          <strong>JSON</strong>
+          <span>Compliance mapped</span>
+          <strong>{complianceCount}</strong>
+        </div>
+        <div className="report-summary-card">
+          <Loader size={18} />
+          <span>Draft/in progress</span>
+          <strong>{generatingCount}</strong>
+        </div>
+        <div className="report-summary-card">
+          <AlertTriangle size={18} />
+          <span>Overdue SLA items</span>
+          <strong>{overdueCount}</strong>
+        </div>
+        <div className="report-summary-card">
+          <Calendar size={18} />
+          <span>Last generated</span>
+          <strong>{reports?.[0]?.date || '—'}</strong>
         </div>
       </div>
 
+      <div className="reports-filter-bar animate-fade-up stagger-2">
+        <div className="report-search">
+          <Search size={15} />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by report, target, or scan type..." />
+        </div>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <option value="all">All statuses</option>
+          <option value="ready">Ready</option>
+          <option value="generating">Generating</option>
+        </select>
+        <button className="btn btn-secondary btn-sm" onClick={() => { setSearch(''); setStatusFilter('all'); }}>Clear</button>
+      </div>
+
       <div className="reports-grid audit-library-grid">
-        {(reports || []).map((report, i) => (
+        {filteredReports.map((report, i) => (
           <div key={report.id} className={`card report-card animate-fade-up stagger-${i + 1}`}>
             <div className="report-icon-wrapper">
               <FileText size={24} />
@@ -103,6 +157,13 @@ export default function Reports() {
                 <span className="report-meta-item"><Calendar size={12} /> {report.date}</span>
                 <span className="report-meta-item"><HardDrive size={12} /> {report.size}</span>
                 <span className="badge badge-info">{report.type}</span>
+                <span className="report-meta-item">Target: {report.target || 'Not available'}</span>
+              </div>
+              <div className="report-evidence-row">
+                <span>Executive-ready</span>
+                <span>Evidence included</span>
+                {report.complianceMapped && <span>Compliance mapping</span>}
+                <SLABadge item={{ severity: report.criticalCount ? 'critical' : 'medium', status: report.overdueCount ? 'open' : 'resolved' }} compact />
               </div>
             </div>
             <div className="report-actions">
@@ -116,9 +177,15 @@ export default function Reports() {
                     <button
                       className="btn btn-ghost btn-sm"
                       aria-label="View scan results"
-                      onClick={() => navigate(`/scan/results/${report.id}`)}
+                      onClick={() => setPreviewReport(report)}
                     >
-                      <Eye size={14} />
+                      <Eye size={14} /> Preview
+                    </button>
+                    <button className="btn btn-secondary btn-sm ai-report-btn" onClick={() => setAiReport(report)}>
+                      <Bot size={14} /> Explain with AI
+                    </button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => setBuilderReport(report)}>
+                      <Settings2 size={14} /> Builder
                     </button>
                     <button
                       className="btn btn-primary btn-sm"
@@ -136,13 +203,57 @@ export default function Reports() {
             </div>
           </div>
         ))}
-        {(reports || []).length === 0 && (
+        {filteredReports.length === 0 && (
           <div className="empty-state">
             <FileText size={32} />
-            <p>No reports yet. Complete a scan to generate one.</p>
+            <p>{(reports || []).length === 0 ? 'No reports generated yet. Complete a scan to create audit-ready evidence.' : 'No reports match your filters.'}</p>
+            <button className="btn btn-primary btn-sm" onClick={() => navigate('/dashboard/scan/new')}>Start a Scan</button>
           </div>
         )}
       </div>
+
+      {previewReport && (
+        <aside className="report-preview-drawer">
+          <div className="report-preview-header">
+            <div>
+              <span className="page-kicker">Report preview</span>
+              <h3>{previewReport.name}</h3>
+              <p>{viewMode === 'executive' ? 'Executive risk and audit readiness summary.' : 'Technical report context and export details.'}</p>
+            </div>
+            <button className="drawer-close" onClick={() => setPreviewReport(null)} aria-label="Close report preview"><X size={18} /></button>
+          </div>
+          <div className="report-preview-body">
+            <div className="preview-stat-grid">
+              <div><span>Target</span><strong>{previewReport.target || 'Not available'}</strong></div>
+              <div><span>Scan type</span><strong>{previewReport.scanType || previewReport.type}</strong></div>
+              <div><span>Risk score</span><strong>{previewReport.riskScore || 'Pending'}</strong></div>
+              <div><span>Critical/high</span><strong>{previewReport.criticalCount || 0} / {previewReport.highCount || 0}</strong></div>
+              <div><span>Compliance</span><strong>{previewReport.complianceMapped ? 'Included' : 'Partial'}</strong></div>
+              <div><span>SLA</span><strong>{previewReport.overdueCount ? `${previewReport.overdueCount} overdue` : 'On track'}</strong></div>
+            </div>
+            <div className="report-preview-copy">
+              <h4>{viewMode === 'executive' ? 'Executive Summary' : 'Technical Summary'}</h4>
+              <p>
+                {viewMode === 'executive'
+                  ? 'This report is prepared for audit review, risk communication, and remediation planning. Review critical and high findings first, then export the report package.'
+                  : 'This preview will include scan metadata, severity distribution, compliance mapping, technical findings, evidence, and remediation details when source data is available.'}
+              </p>
+            </div>
+            <div className="drawer-actions">
+              <button className="btn btn-primary btn-sm" onClick={() => handleDownload(previewReport.id)}>Download {reportFormat.toUpperCase()}</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/dashboard/scan/results/${previewReport.id}`)}>Open Scan Results</button>
+            </div>
+          </div>
+        </aside>
+      )}
+
+      <ReportBuilderDrawer
+        isOpen={!!builderReport}
+        onClose={() => setBuilderReport(null)}
+        report={builderReport}
+        onDownload={handleDownload}
+      />
+      <ReportAIExplainerDrawer report={aiReport} isOpen={!!aiReport} onClose={() => setAiReport(null)} />
     </div>
   );
 }

@@ -53,7 +53,7 @@ export default function Dashboard() {
   // Hooks must be called unconditionally — before any early returns
   const totalScans = useAnimatedCounter(data?.totalScans);
   const activeThreats = useAnimatedCounter(data?.activeThreats);
-  const resolved = useAnimatedCounter(data?.resolvedThisMonth);
+  const resolved = useAnimatedCounter(data?.resolvedFindingsCount);
   const repositories = useAnimatedCounter(data?.repositories);
   const organizations = useAnimatedCounter(data?.organizations);
   const openFindings = useAnimatedCounter(data?.openFindings);
@@ -165,10 +165,10 @@ export default function Dashboard() {
             Live posture from URL, file, and GitHub scans enriched with CVE, compliance, and AI risk context.
           </p>
           <div className="command-actions">
-            <button className="btn btn-primary" onClick={() => navigate('/scan/new')}>
+            <button className="btn btn-primary" onClick={() => navigate('/dashboard/scan/new')}>
               <Scan size={16} /> New Scan
             </button>
-            <button className="btn btn-secondary" onClick={() => navigate('/vulnerability')}>
+            <button className="btn btn-secondary" onClick={() => navigate('/dashboard/vulnerabilities')}>
               <Bug size={16} /> Review Findings
             </button>
           </div>
@@ -207,7 +207,7 @@ export default function Dashboard() {
           color="var(--severity-critical)" index={1}
         />
         <StatCard
-          icon={CheckCircle} label="Resolved (Month)" value={resolved}
+          icon={CheckCircle} label="Resolved Findings" value={resolved}
           color="var(--severity-low)" index={2}
         />
         <StatCard
@@ -243,7 +243,7 @@ export default function Dashboard() {
       <div className="dash-section animate-fade-up stagger-4">
         <div className="section-header">
           <h3 className="section-title">Attention Queue</h3>
-          <Link to="/vulnerability" className="section-link">Open Findings <ArrowRight size={14} /></Link>
+          <Link to="/dashboard/vulnerabilities" className="section-link">Open Findings <ArrowRight size={14} /></Link>
         </div>
         <div className="attention-grid">
           <div className="attention-card critical">
@@ -407,7 +407,7 @@ export default function Dashboard() {
       <div className="dash-section animate-fade-up stagger-10">
         <div className="section-header">
           <h3 className="section-title">Recent Reports</h3>
-          <Link to="/reports" className="section-link">View All <ArrowRight size={14} /></Link>
+          <Link to="/dashboard/reports" className="section-link">View All <ArrowRight size={14} /></Link>
         </div>
         <div className="dash-scan-grid">
           {data.recentReports.map((report) => (
@@ -440,7 +440,7 @@ export default function Dashboard() {
       <div className="dash-section animate-fade-up stagger-12">
         <div className="section-header">
           <h3 className="section-title">Recent Scans</h3>
-          <Link to="/history" className="section-link">View All <ArrowRight size={14} /></Link>
+          <Link to="/dashboard/scans" className="section-link">View All <ArrowRight size={14} /></Link>
         </div>
         <div className="dash-scan-grid">
           {data.recentScans.map((scan, i) => (
@@ -449,9 +449,9 @@ export default function Dashboard() {
               scan={scan}
               index={i}
               onClick={() => {
-                if (scan.status === 'completed') navigate(`/scan/results/${scan.id}`);
+                if (scan.status === 'completed') navigate(`/dashboard/scan/results/${scan.id}`);
                 else if (scan.status === 'running' || scan.status === 'queued') {
-                  navigate(`/scan/progress/${scan.id}`, { state: { scanId: scan.id, target: scan.target } });
+                  navigate(`/dashboard/scan/progress/${scan.id}`, { state: { scanId: scan.id, target: scan.target } });
                 }
               }}
             />
@@ -463,7 +463,7 @@ export default function Dashboard() {
       <div className="dash-section animate-fade-up stagger-13">
         <div className="section-header">
           <h3 className="section-title">Top Vulnerabilities</h3>
-          <Link to="/vulnerability" className="section-link">View All <ArrowRight size={14} /></Link>
+          <Link to="/dashboard/vulnerabilities" className="section-link">View All <ArrowRight size={14} /></Link>
         </div>
         <VulnerabilityTable vulnerabilities={data.topVulnerabilities} compact />
       </div>

@@ -197,6 +197,103 @@
   font-size: var(--font-size-sm);
 }
 
+.launch-review-card {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.review-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-md);
+}
+
+.review-readiness {
+  padding: 6px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--severity-high);
+  color: var(--severity-high);
+  background: rgba(251, 146, 60, 0.1);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.review-readiness.is-ready {
+  border-color: var(--severity-low);
+  color: var(--severity-low);
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.launch-review-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.launch-review-grid div {
+  min-width: 0;
+  padding: var(--space-sm);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  background: rgba(7, 17, 31, 0.54);
+}
+
+.launch-review-grid span {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.launch-review-grid strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scope-warning {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid rgba(250, 204, 21, 0.3);
+  border-radius: var(--radius-md);
+  background: rgba(250, 204, 21, 0.08);
+  color: var(--severity-medium);
+  font-size: var(--font-size-sm);
+}
+
+.launch-checklist {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.launch-checklist div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  color: var(--text-tertiary);
+  font-size: var(--font-size-xs);
+}
+
+.launch-checklist div.ready {
+  color: var(--severity-low);
+  background: rgba(34, 197, 94, 0.08);
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
 /* Config */
 .config-grid {
   display: grid;
@@ -296,7 +393,9 @@
   }
 
   .scan-flow-strip,
-  .new-scan-two-col {
+  .new-scan-two-col,
+  .launch-review-grid,
+  .launch-checklist {
     grid-template-columns: 1fr;
   }
 

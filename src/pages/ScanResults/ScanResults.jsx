@@ -1,14 +1,20 @@
 import { useMemo } from 'react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Download, Share2, BrainCircuit, ShieldCheck, AlertTriangle, FileText } from 'lucide-react';
+import { Download, Share2, BrainCircuit, ShieldCheck, AlertTriangle, FileText, FilePlus2, Radar, Settings2 } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
 import { backendApi } from '../../api/backendApi';
 import { normalizeScanResult } from '../../api/normalizers';
-import VulnerabilityTable from '../../components/VulnerabilityTable/VulnerabilityTable';
 import RiskScore from '../../components/RiskScore/RiskScore';
 import { SkeletonPage } from '../../components/SkeletonLoader/SkeletonLoader';
 import ErrorState from '../../components/ErrorState/ErrorState';
+import ViewModeToggle from '../../components/security/ViewModeToggle';
+import useViewMode from '../../components/security/useViewMode';
+import SecurityVulnerabilityTable from '../../components/security/SecurityVulnerabilityTable';
+import DeveloperTicketDrawer from '../../components/security/DeveloperTicketDrawer';
+import ReportBuilderDrawer from '../../components/security/ReportBuilderDrawer';
+import { ComplianceBadge, SLABadge, SeverityBadge, StatusBadge } from '../../components/security/SecurityBadges';
+import { getComplianceInfo, getSlaInfo, summarizeSeverities } from '../../components/security/securityUtils';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer, Cell
 } from 'recharts';
@@ -18,6 +24,9 @@ export default function ScanResults() {
   const { scanId } = useParams();
   const navigate = useNavigate();
   const [actionMessage, setActionMessage] = useState('');
+  const [viewMode, setViewMode] = useViewMode('vulnexus.scanResults.viewMode');
+  const [ticketFinding, setTicketFinding] = useState(null);
+  const [builderOpen, setBuilderOpen] = useState(false);
 
   const { data: scan, loading, error, refetch } = useApi(async () => {
     if (!scanId) throw new Error('Scan ID is required');
@@ -29,12 +38,15 @@ export default function ScanResults() {
     () => scan?.vulnerabilities?.find((item) => ['critical', 'high'].includes(item.severity)) || scan?.vulnerabilities?.[0],
     [scan],
   );
+  const severityCounts = useMemo(() => summarizeSeverities(scan?.vulnerabilities || []), [scan]);
+  const priorityCompliance = useMemo(() => getComplianceInfo(priorityFinding || {}), [priorityFinding]);
+  const prioritySla = useMemo(() => getSlaInfo(priorityFinding || {}), [priorityFinding]);
 
   if (!scanId) {
     return (
       <ErrorState
         message="No scan selected. Open results from Scan History or after a scan completes."
-        onRetry={() => navigate('/history')}
+        onRetry={() => navigate('/dashboard/scans')}
       />
     );
   }
@@ -70,7 +82,8 @@ export default function ScanResults() {
           </p>
         </div>
         <div className="scan-results-actions">
-          <button className="btn btn-secondary btn-sm" onClick={() => navigate('/history')}>
+          <ViewModeToggle value={viewMode} onChange={setViewMode} />
+          <button className="btn btn-secondary btn-sm" onClick={() => navigate('/dashboard/scans')}>
             <Share2 size={14} /> History
           </button>
           <button className="btn btn-primary btn-sm" onClick={handleDownload}>
@@ -80,12 +93,72 @@ export default function ScanResults() {
       </div>
       {actionMessage && <div className="launch-error" role="alert">{actionMessage}</div>}
 
+      <section className="scan-command-center animate-fade-up stagger-1">
+        <div className="command-risk">
+          <RiskScore score={scan.riskScore} size={118} strokeWidth={8} />
+          <div>
+            <span className="summary-label">{viewMode === 'executive' ? 'Business Risk' : 'Technical Risk Score'}</span>
+            <strong>{scan.executiveSummary.overallRating}</strong>
+            <p>{viewMode === 'executive' ? scan.executiveSummary.keyRecommendation : `Target ${scan.target} completed as ${scan.type}.`}</p>
+          </div>
+        </div>
+        <div className="command-metric"><span>Critical</span><strong>{severityCounts.critical}</strong></div>
+        <div className="command-metric"><span>High</span><strong>{severityCounts.high}</strong></div>
+        <div className="command-metric"><span>Total Findings</span><strong>{severityCounts.total}</strong></div>
+        <div className="command-metric"><span>Report Status</span><strong>Available</strong></div>
+        <div className="command-metric"><span>SLA Risk</span><strong>{prioritySla.label}</strong></div>
+        <div className="command-metric"><span>Compliance</span><strong>{priorityCompliance.mapped ? 'Mapped' : 'Partial'}</strong></div>
+      </section>
+
+      <section className="fix-first-card animate-fade-up stagger-2">
+        <div className="fix-first-main">
+          <span className="page-kicker">Fix this first</span>
+          {priorityFinding ? (
+            <>
+              <div className="fix-first-title-row">
+                <h3>{priorityFinding.name}</h3>
+                <SeverityBadge severity={priorityFinding.severity} />
+                <StatusBadge status={priorityFinding.status} />
+              </div>
+              <p>{viewMode === 'executive' ? priorityFinding.impact : priorityFinding.description || priorityFinding.impact}</p>
+              <div className="fix-first-facts">
+                <div><span>Affected</span><strong>{priorityFinding.endpoint || priorityFinding.target}</strong></div>
+                <div><span>SLA</span><strong>{prioritySla.detail}</strong></div>
+                <div><span>CVSS</span><strong>{priorityFinding.cvss ?? 'N/A'}</strong></div>
+              </div>
+              <div className="mini-compliance-row">
+                <ComplianceBadge label="OWASP" value={priorityCompliance.owasp} disabled={!priorityCompliance.mapped} />
+                <ComplianceBadge label="CWE" value={priorityCompliance.cwe} disabled={!priorityCompliance.mapped} />
+                <ComplianceBadge label="CVSS" value={priorityCompliance.cvss} disabled={!priorityCompliance.mapped} />
+              </div>
+            </>
+          ) : (
+            <p>No priority finding was returned for this scan.</p>
+          )}
+        </div>
+        <div className="fix-first-actions">
+          <button className="btn btn-primary btn-sm" onClick={() => priorityFinding && navigate(`/dashboard/vulnerabilities/${priorityFinding.id}`)}>
+            Open Case File
+          </button>
+          <button className="btn btn-secondary btn-sm" onClick={() => setTicketFinding(priorityFinding)} disabled={!priorityFinding}>
+            <FilePlus2 size={14} /> Create Ticket
+          </button>
+          <button className="btn btn-secondary btn-sm" disabled>
+            <Radar size={14} /> Verify Fix soon
+          </button>
+          <button className="btn btn-secondary btn-sm" onClick={() => setBuilderOpen(true)}>
+            <Settings2 size={14} /> Include in Report
+          </button>
+        </div>
+      </section>
+
       <div className="results-summary">
         <div className="card results-risk animate-fade-up stagger-1">
           <h3 className="card-title">Risk Score</h3>
           <div className="results-risk-center">
             <RiskScore score={scan.riskScore} size={140} strokeWidth={8} />
           </div>
+          <p className="risk-score-caption">{scan.riskScore} ({scan.riskLabel.replace(' Risk', '')})</p>
         </div>
 
         <div className="card results-chart animate-fade-up stagger-2">
@@ -147,7 +220,12 @@ export default function ScanResults() {
 
       <div className="results-workspace animate-fade-up stagger-5">
         <div className="results-table-pane">
-          <VulnerabilityTable vulnerabilities={scan.vulnerabilities} />
+          <SecurityVulnerabilityTable
+            vulnerabilities={scan.vulnerabilities}
+            onTicket={setTicketFinding}
+            onVerify={(finding) => setActionMessage(`Targeted verification for "${finding.name}" needs backend support before it can run.`)}
+            onAskAI={(finding) => navigate(`/dashboard/vulnerabilities/${finding.id}`)}
+          />
         </div>
         <aside className="finding-focus-pane">
           <div className="focus-header">
@@ -160,11 +238,20 @@ export default function ScanResults() {
               <span className={`badge badge-${priorityFinding.severity}`}>{priorityFinding.severity}</span>
               <p>{priorityFinding.description || 'No description available.'}</p>
               <div className="focus-facts">
-                <div><span>CVE</span><strong>{priorityFinding.cve || 'N/A'}</strong></div>
-                <div><span>CVSS</span><strong>{priorityFinding.cvss ?? 'N/A'}</strong></div>
+                <div><span>Confidence</span><strong>{priorityFinding.confidence}</strong></div>
+                <div><span>CVE</span><strong>{priorityFinding.cve || 'Not Applicable'}</strong></div>
+                <div><span>CVSS</span><strong>{priorityFinding.cvss ?? 'Not Applicable'}</strong></div>
                 <div><span>Status</span><strong>{priorityFinding.status}</strong></div>
               </div>
-              <button className="btn btn-primary btn-sm" onClick={() => navigate(`/vulnerability/${priorityFinding.id}`)}>
+              <div className="focus-section">
+                <span>Business Impact</span>
+                <p>{priorityFinding.impact}</p>
+              </div>
+              <div className="focus-section">
+                <span>Remediation</span>
+                <p>{priorityFinding.remediation}</p>
+              </div>
+              <button className="btn btn-primary btn-sm" onClick={() => navigate(`/dashboard/vulnerabilities/${priorityFinding.id}`)}>
                 Open Case File
               </button>
             </>
@@ -173,6 +260,20 @@ export default function ScanResults() {
           )}
         </aside>
       </div>
+      <div className="next-actions-strip animate-fade-up stagger-6">
+        <button className="btn btn-secondary btn-sm" onClick={() => navigate('/dashboard/vulnerabilities')}>View all vulnerabilities</button>
+        <button className="btn btn-secondary btn-sm" onClick={() => setBuilderOpen(true)}>Build custom report</button>
+        <button className="btn btn-secondary btn-sm" onClick={handleDownload}>Export PDF</button>
+        <button className="btn btn-secondary btn-sm" disabled>Ask AI for scan summary soon</button>
+      </div>
+      <DeveloperTicketDrawer finding={ticketFinding} isOpen={!!ticketFinding} onClose={() => setTicketFinding(null)} />
+      <ReportBuilderDrawer
+        isOpen={builderOpen}
+        onClose={() => setBuilderOpen(false)}
+        scan={scan}
+        findings={scan.vulnerabilities}
+        onDownload={handleDownload}
+      />
     </div>
   );
 }

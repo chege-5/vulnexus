@@ -37,9 +37,9 @@ export default function ScanHistory() {
 
   const handleScanClick = (scan) => {
     if (scan.status === 'running' || scan.status === 'queued') {
-      navigate(`/scan/progress/${scan.id}`, { state: { scanId: scan.id, target: scan.target } });
+      navigate(`/dashboard/scan/progress/${scan.id}`, { state: { scanId: scan.id, target: scan.target } });
     } else if (scan.status === 'completed') {
-      navigate(`/scan/results/${scan.id}`);
+      navigate(`/dashboard/scan/results/${scan.id}`);
     }
   };
 
