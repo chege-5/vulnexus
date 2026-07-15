@@ -26,6 +26,12 @@ export default function Settings() {
   const [connectionError, setConnectionError] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [mfaStatus, setMfaStatus] = useState(null);
+  const [mfaSetup, setMfaSetup] = useState(null);
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaPassword, setMfaPassword] = useState('');
+  const [mfaRecoveryCodes, setMfaRecoveryCodes] = useState([]);
+  const [mfaMessage, setMfaMessage] = useState('');
 
   // Controlled profile fields — initialized from localStorage or user context
   const storedSettings = (() => {
@@ -55,6 +61,17 @@ export default function Settings() {
       }
     })();
 
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== 'security') return;
+    let cancelled = false;
+    backendApi.getMfaStatus()
+      .then((data) => { if (!cancelled) setMfaStatus(data); })
+      .catch((err) => { if (!cancelled) setMfaMessage(err.message || 'Unable to load MFA status'); });
     return () => {
       cancelled = true;
     };
@@ -107,6 +124,56 @@ export default function Settings() {
       setConnectionError(err.message || 'Failed to disconnect GitHub account');
     } finally {
       setDisconnecting(false);
+    }
+  };
+
+  const handleStartMfaSetup = async () => {
+    setMfaMessage('');
+    const setup = await backendApi.startMfaSetup();
+    setMfaSetup(setup);
+  };
+
+  const handleEnableMfa = async () => {
+    setMfaMessage('');
+    try {
+      const response = await backendApi.enableMfa(mfaCode);
+      setMfaRecoveryCodes(response.recovery_codes || []);
+      setMfaStatus({ enabled: true, recovery_codes_remaining: response.recovery_codes?.length || 0 });
+      setMfaSetup(null);
+      setMfaCode('');
+      updateUser({ mfa_enabled: true });
+      setMfaMessage('MFA enabled. Store the recovery codes now; they are shown once.');
+    } catch (err) {
+      setMfaMessage(err.message || 'Unable to enable MFA');
+    }
+  };
+
+  const handleDisableMfa = async () => {
+    setMfaMessage('');
+    try {
+      await backendApi.disableMfa(mfaPassword, mfaCode);
+      setMfaStatus({ enabled: false, recovery_codes_remaining: 0 });
+      setMfaPassword('');
+      setMfaCode('');
+      setMfaRecoveryCodes([]);
+      updateUser({ mfa_enabled: false });
+      setMfaMessage('MFA disabled.');
+    } catch (err) {
+      setMfaMessage(err.message || 'Unable to disable MFA');
+    }
+  };
+
+  const handleRegenerateRecoveryCodes = async () => {
+    setMfaMessage('');
+    try {
+      const response = await backendApi.regenerateMfaRecoveryCodes(mfaPassword, mfaCode);
+      setMfaRecoveryCodes(response.recovery_codes || []);
+      setMfaStatus({ enabled: true, recovery_codes_remaining: response.recovery_codes?.length || 0 });
+      setMfaPassword('');
+      setMfaCode('');
+      setMfaMessage('New recovery codes generated. Store them now.');
+    } catch (err) {
+      setMfaMessage(err.message || 'Unable to regenerate recovery codes');
     }
   };
 
@@ -191,15 +258,58 @@ export default function Settings() {
                   <input type="password" placeholder="Confirm new password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
                 </div>
                 <button className="btn btn-primary btn-sm" onClick={handleChangePassword}>Change Password</button>
-                <div className="settings-toggle-row">
+                <div className="mfa-settings-card">
                   <div>
-                    <div className="toggle-label">Two-Factor Authentication</div>
-                    <div className="toggle-desc">Add an extra layer of security</div>
+                    <div className="toggle-label">Authenticator App MFA</div>
+                    <div className="toggle-desc">
+                      {mfaStatus?.enabled
+                        ? `${mfaStatus.recovery_codes_remaining || 0} recovery codes remaining.`
+                        : 'Use a TOTP authenticator app for the second login step.'}
+                    </div>
                   </div>
-                  <label className="toggle-switch">
-                    <input type="checkbox" />
-                    <span className="toggle-slider" />
-                  </label>
+                  {!mfaStatus?.enabled && !mfaSetup && (
+                    <button className="btn btn-secondary btn-sm" onClick={handleStartMfaSetup}>Set up MFA</button>
+                  )}
+                  {mfaSetup && (
+                    <div className="mfa-setup-box">
+                      <div className="api-key-card">
+                        <div className="api-key-info">
+                          <span className="api-key-label">Manual setup key</span>
+                          <code className="api-key-value">{mfaSetup.manual_key}</code>
+                        </div>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Authenticator code</label>
+                        <input value={mfaCode} onChange={(e) => setMfaCode(e.target.value)} placeholder="123456" />
+                      </div>
+                      <button className="btn btn-primary btn-sm" onClick={handleEnableMfa}>Verify and enable</button>
+                    </div>
+                  )}
+                  {mfaStatus?.enabled && (
+                    <div className="mfa-setup-box">
+                      <div className="form-group">
+                        <label className="form-label">Password</label>
+                        <input type="password" value={mfaPassword} onChange={(e) => setMfaPassword(e.target.value)} placeholder="Confirm password" />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Authenticator code</label>
+                        <input value={mfaCode} onChange={(e) => setMfaCode(e.target.value)} placeholder="123456" />
+                      </div>
+                      <div className="connection-actions">
+                        <button className="btn btn-secondary btn-sm" onClick={handleRegenerateRecoveryCodes}>Regenerate recovery codes</button>
+                        <button className="btn btn-danger btn-sm" onClick={handleDisableMfa}>Disable MFA</button>
+                      </div>
+                    </div>
+                  )}
+                  {mfaRecoveryCodes.length > 0 && (
+                    <div className="api-key-card">
+                      <div className="api-key-info">
+                        <span className="api-key-label">Recovery codes</span>
+                        <code className="api-key-value">{mfaRecoveryCodes.join('  ')}</code>
+                      </div>
+                    </div>
+                  )}
+                  {mfaMessage && <div className="settings-empty">{mfaMessage}</div>}
                 </div>
                 <div className="settings-toggle-row">
                   <div>

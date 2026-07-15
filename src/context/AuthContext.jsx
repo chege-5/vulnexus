@@ -31,7 +31,13 @@ export function AuthProvider({ children }) {
 
   const signIn = async (email, password, options = {}) => {
     const session = await backendApi.login(email, password);
+    if (session.mfaRequired) return session;
     return completeSession(session, options);
+  };
+
+  const verifyMfaLogin = async (challengeToken, code, recoveryCode = '') => {
+    const session = await backendApi.verifyMfaLogin(challengeToken, code, recoveryCode);
+    return completeSession(session);
   };
 
   const signUp = async (email, password, profileDetails, options = {}) => {
@@ -70,7 +76,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, signIn, signUp, signOut, updateUser, beginOAuth, completeOAuthCallback, isAuthenticated: !!user, loading }}>
+    <AuthContext.Provider value={{ user, token, signIn, verifyMfaLogin, signUp, signOut, updateUser, beginOAuth, completeOAuthCallback, isAuthenticated: !!user, loading }}>
       {!loading && children}
     </AuthContext.Provider>
   );

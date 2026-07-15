@@ -1,4 +1,7 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1').replace(/\/$/, '');
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL?.trim() || 'http://localhost:8000/api/v1').replace(/\/$/, '');
+const FALLBACK_API_BASE_URL = 'http://localhost:8000/api/v1';
+
+let activeApiBaseUrl = API_BASE_URL;
 // Access tokens are deliberately memory-only. The long-lived refresh token is
 // an HttpOnly, Secure cookie managed by the API and cannot be read by scripts.
 let accessToken = null;
@@ -16,6 +19,26 @@ class ApiError extends Error {
   }
 }
 
+function getRequestBaseUrls() {
+  return [...new Set([activeApiBaseUrl, API_BASE_URL, FALLBACK_API_BASE_URL])];
+}
+
+async function fetchWithFallback(path, options) {
+  let lastError;
+
+  for (const baseUrl of getRequestBaseUrls()) {
+    try {
+      const response = await fetch(`${baseUrl}${path}`, options);
+      activeApiBaseUrl = baseUrl;
+      return response;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError;
+}
+
 async function request(path, options = {}) {
   const token = accessToken;
   const headers = {
@@ -24,11 +47,11 @@ async function request(path, options = {}) {
     ...options.headers,
   };
 
-  let response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers, credentials: 'include' });
+  let response = await fetchWithFallback(path, { ...options, headers, credentials: 'include' });
   if (response.status === 401 && token && !options.skipRefresh) {
     const refreshedToken = await refreshSession();
     if (refreshedToken) {
-      response = await fetch(`${API_BASE_URL}${path}`, {
+      response = await fetchWithFallback(path, {
         ...options,
         headers: { ...headers, Authorization: `Bearer ${refreshedToken}` },
         credentials: 'include',
@@ -49,7 +72,7 @@ async function request(path, options = {}) {
 }
 
 async function refreshSession() {
-  const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+  const response = await fetchWithFallback('/auth/refresh', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({}),
@@ -119,7 +142,69 @@ export const backendApi = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
+    if (data.mfa_required) {
+      return {
+        mfaRequired: true,
+        challengeToken: data.challenge_token,
+        expiresInSeconds: data.expires_in_seconds,
+      };
+    }
     return { token: data.access_token, refreshToken: data.refresh_token, user: data.user };
+  },
+
+  async verifyMfaLogin(challengeToken, code, recoveryCode = '') {
+    const data = await request('/auth/mfa/verify-login', {
+      method: 'POST',
+      body: JSON.stringify({
+        challenge_token: challengeToken,
+        code,
+        recovery_code: recoveryCode || null,
+      }),
+    });
+    return { token: data.access_token, refreshToken: data.refresh_token, user: data.user };
+  },
+
+  getMfaStatus() {
+    return request('/auth/mfa/status');
+  },
+
+  startMfaSetup() {
+    return request('/auth/mfa/setup', { method: 'POST' });
+  },
+
+  enableMfa(code) {
+    return request('/auth/mfa/enable', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+  },
+
+  disableMfa(password, code, recoveryCode = '') {
+    return request('/auth/mfa/disable', {
+      method: 'POST',
+      body: JSON.stringify({ password, code, recovery_code: recoveryCode || null }),
+    });
+  },
+
+  regenerateMfaRecoveryCodes(password, code) {
+    return request('/auth/mfa/recovery-codes/regenerate', {
+      method: 'POST',
+      body: JSON.stringify({ password, code }),
+    });
+  },
+
+  verifyEmail(token) {
+    return request('/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    });
+  },
+
+  resendVerification(email) {
+    return request('/auth/resend-verification', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
   },
 
   async register(email, password, profileDetails) {
@@ -231,7 +316,7 @@ export const backendApi = {
 
   getScanWebSocketUrl(scanId) {
     const token = authStorage.getToken();
-    const wsBase = API_BASE_URL.replace(/^http/, 'ws').replace(/\/api\/v1$/, '');
+    const wsBase = activeApiBaseUrl.replace(/^http/, 'ws').replace(/\/api\/v1$/, '');
     return `${wsBase}/api/v1/ws/scan-status/${encodeURIComponent(scanId)}?token=${encodeURIComponent(token || '')}`;
   },
 
@@ -244,7 +329,10 @@ export const backendApi = {
   },
 
   async explainVulnerability(id, audience = 'analyst') {
-    return request(`/vulnerabilities/${id}/explain?audience=${encodeURIComponent(audience)}`);
+    return request(`/vulnerabilities/${id}/ai-explain`, {
+      method: 'POST',
+      body: JSON.stringify({ audience }),
+    });
   },
 
   updateVulnerability(id, payload) {
@@ -263,7 +351,7 @@ export const backendApi = {
 
   async downloadVulnerabilityReport(id, format = 'pdf') {
     const token = authStorage.getToken();
-    const response = await fetch(`${API_BASE_URL}/vulnerabilities/${id}/report?format=${encodeURIComponent(format)}`, {
+    const response = await fetchWithFallback(`/vulnerabilities/${id}/report?format=${encodeURIComponent(format)}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!response.ok) {
@@ -283,9 +371,16 @@ export const backendApi = {
     return request('/reports');
   },
 
+  askReportAI(scanId, question) {
+    return request(`/report/${scanId}/ask-ai`, {
+      method: 'POST',
+      body: JSON.stringify({ question }),
+    });
+  },
+
   async downloadReport(scanId, format = 'pdf') {
     const token = authStorage.getToken();
-    const response = await fetch(`${API_BASE_URL}/report/${scanId}?format=${encodeURIComponent(format)}`, {
+    const response = await fetchWithFallback(`/report/${scanId}?format=${encodeURIComponent(format)}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!response.ok) {

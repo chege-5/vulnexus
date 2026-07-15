@@ -18,7 +18,7 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const LOCKOUT_THRESHOLD = 4;
 
 export default function Login() {
-  const { signIn, beginOAuth } = useAuth();
+  const { signIn, verifyMfaLogin, beginOAuth } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,6 +29,9 @@ export default function Login() {
   const [error, setError] = useState('');
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [pendingDestination, setPendingDestination] = useState('');
+  const [mfaChallenge, setMfaChallenge] = useState(null);
+  const [mfaCode, setMfaCode] = useState('');
+  const [recoveryMode, setRecoveryMode] = useState(false);
 
   const emailInvalid = email.length > 0 && !emailPattern.test(email);
   const lockoutWarning = failedAttempts >= LOCKOUT_THRESHOLD
@@ -55,12 +58,38 @@ export default function Login() {
     setLoading(true);
     try {
       const session = await signIn(email, password, { remember: rememberMe });
+      if (session.mfaRequired) {
+        setMfaChallenge(session);
+        return;
+      }
       setFailedAttempts(0);
       setPendingDestination(getPostLoginPath(session.user));
     } catch (err) {
       const nextAttempts = failedAttempts + 1;
       setFailedAttempts(nextAttempts);
       setError(nextAttempts >= LOCKOUT_THRESHOLD ? 'Too many attempts. Please wait before trying again.' : mapAuthError(err, 'Unable to sign in. Please try again.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMfaSubmit = async (event) => {
+    event.preventDefault();
+    setError('');
+    if (!mfaCode.trim()) {
+      setError(recoveryMode ? 'Enter a recovery code.' : 'Enter your authenticator code.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const session = await verifyMfaLogin(
+        mfaChallenge.challengeToken,
+        recoveryMode ? '' : mfaCode.trim(),
+        recoveryMode ? mfaCode.trim() : '',
+      );
+      setPendingDestination(getPostLoginPath(session.user));
+    } catch (err) {
+      setError(mapAuthError(err, 'Unable to verify MFA code.'));
     } finally {
       setLoading(false);
     }
@@ -84,6 +113,39 @@ export default function Login() {
         onLater={continueToDashboard}
         onSkip={continueToDashboard}
       />
+    );
+  }
+
+  if (mfaChallenge) {
+    return (
+      <AuthLayout mode="mfa" tagline="Complete the second step to open your VulNexus workspace.">
+        <AuthCard>
+          <div className="auth-card-heading">
+            <p className="auth-kicker">Multi-factor authentication</p>
+            <h2>Verify your sign in</h2>
+            <p>{recoveryMode ? 'Use one recovery code. It will be consumed after login.' : 'Enter the 6-digit code from your authenticator app.'}</p>
+          </div>
+          <ErrorAlert message={error} />
+          <form className="auth-form" onSubmit={handleMfaSubmit}>
+            <AuthInput
+              id="mfa-code"
+              label={recoveryMode ? 'Recovery code' : 'Authenticator code'}
+              type="text"
+              value={mfaCode}
+              onChange={(event) => setMfaCode(event.target.value)}
+              placeholder={recoveryMode ? 'abcd1234-ef567890' : '123456'}
+              autoComplete="one-time-code"
+              icon={Lock}
+            />
+            <button type="submit" className="btn btn-primary btn-lg auth-primary-btn" disabled={loading}>
+              {loading ? <><Loader size={18} className="spin" /> Verifying...</> : <>Verify <ArrowRight size={17} /></>}
+            </button>
+          </form>
+          <button type="button" className="btn btn-ghost signup-skip" onClick={() => { setRecoveryMode((value) => !value); setMfaCode(''); setError(''); }}>
+            {recoveryMode ? 'Use authenticator code' : 'Use recovery code'}
+          </button>
+        </AuthCard>
+      </AuthLayout>
     );
   }
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Copy, ExternalLink, GitBranch, X } from 'lucide-react';
 import { buildTicketDraft, getSlaInfo } from './securityUtils';
 import './security.css';
@@ -8,11 +8,12 @@ export default function DeveloperTicketDrawer({ finding, isOpen, onClose }) {
   const sla = useMemo(() => getSlaInfo(finding || {}), [finding]);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    if (!isOpen) setCopied(false);
-  }, [isOpen]);
-
   if (!isOpen) return null;
+
+  const handleClose = () => {
+    setCopied(false);
+    onClose();
+  };
 
   const copyDraft = async () => {
     try {
@@ -32,7 +33,7 @@ export default function DeveloperTicketDrawer({ finding, isOpen, onClose }) {
           <h3>{draft.title}</h3>
           <p>Copyable remediation ticket draft. External issue creation is ready for backend integration.</p>
         </div>
-        <button className="drawer-close" onClick={onClose} aria-label="Close ticket drawer"><X size={18} /></button>
+        <button className="drawer-close" onClick={handleClose} aria-label="Close ticket drawer"><X size={18} /></button>
       </div>
 
       <div className="drawer-meta-grid">

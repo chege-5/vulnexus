@@ -92,6 +92,24 @@
   border-bottom: 1px solid var(--border-secondary);
 }
 
+.mfa-settings-card {
+  display: grid;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  background: rgba(7, 17, 31, 0.42);
+}
+
+.mfa-setup-box {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.mfa-settings-card .api-key-card {
+  margin-bottom: 0;
+}
+
 .toggle-label {
   font-size: var(--font-size-sm);
   font-weight: 500;

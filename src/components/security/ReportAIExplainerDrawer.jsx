@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bot, Copy, Send, Sparkles, X } from 'lucide-react';
+import { backendApi } from '../../api/backendApi';
 import './security.css';
 
 const PROMPTS = [
@@ -13,33 +14,30 @@ const PROMPTS = [
   'Create a developer action list',
 ];
 
-function placeholderResponse(prompt) {
-  return [
-    'AI report explanation is not connected yet.',
-    '',
-    `Requested prompt: ${prompt}`,
-    '',
-    'Once the report explanation endpoint is available, this assistant can summarize the report, explain risk, produce remediation plans, and create audit-ready language from the selected report context.',
-  ].join('\n');
-}
+const WELCOME_MESSAGE = {
+  id: 'welcome',
+  role: 'assistant',
+  text: 'Select a prompt or ask a question about this report, its risk, remediation plan, compliance impact, or next steps.',
+};
 
 export default function ReportAIExplainerDrawer({ report, isOpen, onClose }) {
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState([WELCOME_MESSAGE]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
   const inputRef = useRef(null);
+  const messageSequenceRef = useRef(0);
+
+  const nextMessageId = (prefix) => {
+    messageSequenceRef.current += 1;
+    return `${prefix}-${messageSequenceRef.current}`;
+  };
 
   useEffect(() => {
     if (isOpen) {
-      setMessages([{
-        id: 'welcome',
-        role: 'assistant',
-        text: 'Select a prompt or ask a question about this report, its risk, remediation plan, compliance impact, or next steps.',
-      }]);
       window.setTimeout(() => inputRef.current?.focus(), 120);
     }
-  }, [isOpen, report?.id]);
+  }, [isOpen]);
 
   const meta = useMemo(() => ([
     ['Target', report?.target || 'Not available'],
@@ -50,18 +48,33 @@ export default function ReportAIExplainerDrawer({ report, isOpen, onClose }) {
 
   if (!isOpen) return null;
 
+  const handleClose = () => {
+    setMessages([WELCOME_MESSAGE]);
+    setInput('');
+    setLoading(false);
+    setCopiedId(null);
+    onClose();
+  };
+
   const ask = async (text) => {
     const trimmed = text.trim();
-    if (!trimmed) return;
-    const userMessage = { id: `u-${Date.now()}`, role: 'user', text: trimmed };
+    if (!trimmed || loading || !report?.id) return;
+    const userMessage = { id: nextMessageId('u'), role: 'user', text: trimmed };
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setLoading(true);
-    window.setTimeout(() => {
-      // TODO: Replace placeholder with backendApi.explainReport(report.id, trimmed) when available.
-      setMessages((prev) => [...prev, { id: `a-${Date.now()}`, role: 'assistant', text: placeholderResponse(trimmed) }]);
+    try {
+      const response = await backendApi.askReportAI(report.id, trimmed);
+      setMessages((prev) => [...prev, { id: nextMessageId('a'), role: 'assistant', text: response.answer }]);
+    } catch (error) {
+      setMessages((prev) => [...prev, {
+        id: nextMessageId('a'),
+        role: 'assistant',
+        text: `I couldn't answer that from this report right now. ${error?.message || 'Please try again.'}`,
+      }]);
+    } finally {
       setLoading(false);
-    }, 420);
+    }
   };
 
   const copyMessage = async (message) => {
@@ -82,7 +95,7 @@ export default function ReportAIExplainerDrawer({ report, isOpen, onClose }) {
           <h3>{report?.name || 'Select a report'}</h3>
           <p>Ask questions about this report, findings, risk level, remediation, or compliance impact.</p>
         </div>
-        <button className="drawer-close" onClick={onClose} aria-label="Close AI report explainer"><X size={18} /></button>
+        <button className="drawer-close" onClick={handleClose} aria-label="Close AI report explainer"><X size={18} /></button>
       </div>
 
       <div className="drawer-meta-grid">
@@ -91,7 +104,7 @@ export default function ReportAIExplainerDrawer({ report, isOpen, onClose }) {
 
       <div className="ai-prompt-row">
         {PROMPTS.map((prompt) => (
-          <button key={prompt} type="button" onClick={() => ask(prompt)}>
+          <button key={prompt} type="button" onClick={() => ask(prompt)} disabled={loading || !report?.id}>
             <Sparkles size={12} /> {prompt}
           </button>
         ))}
