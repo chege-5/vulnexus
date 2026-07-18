@@ -3,6 +3,12 @@ import { authStorage, backendApi } from '../api/backendApi';
 
 const AuthContext = createContext();
 
+function getOAuthRedirectUri(provider) {
+  const configuredOrigin = import.meta.env.VITE_OAUTH_CALLBACK_ORIGIN?.trim().replace(/\/$/, '');
+  const origin = configuredOrigin || window.location.origin;
+  return `${origin}/auth/${provider}/callback`;
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => authStorage.getUser());
   const [token, setToken] = useState(() => authStorage.getToken());
@@ -46,7 +52,7 @@ export function AuthProvider({ children }) {
   };
 
   const beginOAuth = async (provider, flow = 'login') => {
-    const redirectUri = `${window.location.origin}/auth/${provider}/callback`;
+    const redirectUri = getOAuthRedirectUri(provider);
     const authorizationUrl = await backendApi.getOAuthStartUrl(provider, flow, redirectUri);
     window.location.assign(authorizationUrl);
   };

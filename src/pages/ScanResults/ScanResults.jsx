@@ -1,7 +1,6 @@
-import { useMemo } from 'react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Download, Share2, BrainCircuit, ShieldCheck, AlertTriangle, FileText, FilePlus2, Radar, Settings2 } from 'lucide-react';
+import { Download, Share2, BrainCircuit, ShieldCheck, AlertTriangle, FileText, FilePlus2, Radar, Settings2, Loader } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
 import { backendApi } from '../../api/backendApi';
 import { normalizeScanResult } from '../../api/normalizers';
@@ -27,6 +26,7 @@ export default function ScanResults() {
   const [viewMode, setViewMode] = useViewMode('vulnexus.scanResults.viewMode');
   const [ticketFinding, setTicketFinding] = useState(null);
   const [builderOpen, setBuilderOpen] = useState(false);
+  const [aiReview, setAiReview] = useState(null);
 
   const { data: scan, loading, error, refetch } = useApi(async () => {
     if (!scanId) throw new Error('Scan ID is required');
@@ -42,6 +42,31 @@ export default function ScanResults() {
   const priorityCompliance = useMemo(() => getComplianceInfo(priorityFinding || {}), [priorityFinding]);
   const prioritySla = useMemo(() => getSlaInfo(priorityFinding || {}), [priorityFinding]);
 
+  useEffect(() => {
+    if (!scanId || !scan) return undefined;
+    let cancelled = false;
+    let timer;
+
+    const poll = async () => {
+      try {
+        const status = await backendApi.getAIReviewStatus(scanId);
+        if (cancelled) return;
+        setAiReview(status);
+        if (!['completed', 'failed'].includes(status.ai_review_status)) {
+          timer = window.setTimeout(poll, 2500);
+        }
+      } catch {
+        if (!cancelled) timer = window.setTimeout(poll, 5000);
+      }
+    };
+
+    poll();
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [scanId, scan]);
+
   if (!scanId) {
     return (
       <ErrorState
@@ -54,6 +79,18 @@ export default function ScanResults() {
   if (loading) return <SkeletonPage />;
   if (error) return <ErrorState message={error} onRetry={refetch} />;
   if (!scan) return null;
+
+  const aiReviewStatus = aiReview?.ai_review_status || scan.aiReviewStatus || 'pending';
+  const aiReviewData = aiReview?.review || scan.aiReview;
+  const enhancedReportReady = aiReview?.enhanced_report_ready || scan.enhancedReportReady;
+  const reviewSummary = typeof aiReviewData?.summary === 'string' ? aiReviewData.summary : 'AI review is ready for this completed scan.';
+  const reviewImpact = typeof aiReviewData?.why_it_matters === 'string' ? aiReviewData.why_it_matters : 'Review the completed findings and validate remediation against the scan evidence.';
+  const remediationSteps = Array.isArray(aiReviewData?.remediation_steps)
+    ? aiReviewData.remediation_steps.filter((step) => typeof step === 'string' && step.trim())
+    : [];
+  const aiReviewError = typeof (aiReview?.ai_review_error || scan.aiReviewError) === 'string'
+    ? (aiReview?.ai_review_error || scan.aiReviewError)
+    : 'The assisted review could not be completed.';
 
   const findingsData = [
     { name: 'Critical', count: scan.findings.critical, fill: '#EF4444' },
@@ -260,6 +297,56 @@ export default function ScanResults() {
           )}
         </aside>
       </div>
+      <section className="ai-review-panel animate-fade-up stagger-6" aria-live="polite">
+        {['pending', 'processing'].includes(aiReviewStatus) && (
+          <>
+            <div className="ai-review-spinner"><Loader size={20} className="spin" /></div>
+            <div>
+              <span className="page-kicker">AI review</span>
+              <h3>Waiting for AI review and remediation.</h3>
+              <p>Your scan findings and baseline report are ready. AI explanation and enhanced remediation will appear here automatically.</p>
+            </div>
+          </>
+        )}
+        {aiReviewStatus === 'failed' && (
+          <div>
+            <span className="page-kicker">AI review unavailable</span>
+            <h3>Scan findings remain available.</h3>
+            <p>{aiReviewError}</p>
+          </div>
+        )}
+        {aiReviewStatus === 'completed' && aiReviewData && (
+          <div className="ai-review-ready">
+            <div>
+              <span className="page-kicker">AI review complete</span>
+              <h3>Explanation and remediation guidance</h3>
+              <p>{reviewSummary}</p>
+            </div>
+            <div className="ai-review-guidance">
+              <div>
+                <span>Why it matters</span>
+                <p>{reviewImpact}</p>
+              </div>
+              <div>
+                <span>Recommended remediation</span>
+                <ul>
+                  {remediationSteps.length > 0
+                    ? remediationSteps.map((step) => <li key={step}>{step}</li>)
+                    : <li>Review the completed scan findings and validate remediation before deployment.</li>}
+                </ul>
+              </div>
+            </div>
+            {enhancedReportReady && (
+              <div className="ai-report-ready">
+                <span>Enhanced report ready</span>
+                <button className="btn btn-secondary btn-sm" onClick={handleDownload}>
+                  <Download size={14} /> Download enhanced report
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
       <div className="next-actions-strip animate-fade-up stagger-6">
         <button className="btn btn-secondary btn-sm" onClick={() => navigate('/dashboard/vulnerabilities')}>View all vulnerabilities</button>
         <button className="btn btn-secondary btn-sm" onClick={() => setBuilderOpen(true)}>Build custom report</button>

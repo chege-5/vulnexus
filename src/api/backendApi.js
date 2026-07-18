@@ -1,11 +1,15 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL?.trim() || 'http://localhost:8000/api/v1').replace(/\/$/, '');
-const FALLBACK_API_BASE_URL = 'http://localhost:8000/api/v1';
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
 
-let activeApiBaseUrl = API_BASE_URL;
+if (!configuredApiBaseUrl) {
+  throw new Error('VITE_API_BASE_URL must be configured. VulNexus will not choose a backend automatically.');
+}
+
+const API_BASE_URL = configuredApiBaseUrl.replace(/\/$/, '');
 // Access tokens are deliberately memory-only. The long-lived refresh token is
 // an HttpOnly, Secure cookie managed by the API and cannot be read by scripts.
 let accessToken = null;
 let currentUser = null;
+let refreshRequest = null;
 
 function clearStoredSession() {
   accessToken = null;
@@ -19,24 +23,8 @@ class ApiError extends Error {
   }
 }
 
-function getRequestBaseUrls() {
-  return [...new Set([activeApiBaseUrl, API_BASE_URL, FALLBACK_API_BASE_URL])];
-}
-
-async function fetchWithFallback(path, options) {
-  let lastError;
-
-  for (const baseUrl of getRequestBaseUrls()) {
-    try {
-      const response = await fetch(`${baseUrl}${path}`, options);
-      activeApiBaseUrl = baseUrl;
-      return response;
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  throw lastError;
+async function fetchFromConfiguredApi(path, options) {
+  return fetch(`${API_BASE_URL}${path}`, options);
 }
 
 async function request(path, options = {}) {
@@ -47,11 +35,11 @@ async function request(path, options = {}) {
     ...options.headers,
   };
 
-  let response = await fetchWithFallback(path, { ...options, headers, credentials: 'include' });
+  let response = await fetchFromConfiguredApi(path, { ...options, headers, credentials: 'include' });
   if (response.status === 401 && token && !options.skipRefresh) {
     const refreshedToken = await refreshSession();
     if (refreshedToken) {
-      response = await fetchWithFallback(path, {
+      response = await fetchFromConfiguredApi(path, {
         ...options,
         headers: { ...headers, Authorization: `Bearer ${refreshedToken}` },
         credentials: 'include',
@@ -72,17 +60,34 @@ async function request(path, options = {}) {
 }
 
 async function refreshSession() {
-  const response = await fetchWithFallback('/auth/refresh', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
-    credentials: 'include',
-  });
-  if (!response.ok) return null;
+  if (refreshRequest) return refreshRequest;
 
-  const data = await response.json();
-  authStorage.setSession(data.access_token, data.user);
-  return data.access_token;
+  refreshRequest = (async () => {
+    try {
+      const response = await fetchFromConfiguredApi('/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+        credentials: 'include',
+      });
+
+      // An expired or missing refresh cookie is an expected unauthenticated
+      // state. Clear the in-memory session and do not retry refresh itself.
+      if (response.status === 401) {
+        clearStoredSession();
+        return null;
+      }
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      authStorage.setSession(data.access_token, data.user);
+      return data.access_token;
+    } finally {
+      refreshRequest = null;
+    }
+  })();
+
+  return refreshRequest;
 }
 
 function downloadBlob(blob, filename) {
@@ -294,12 +299,16 @@ export const backendApi = {
     return request(`/scans?limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}`);
   },
 
-  getScanStatus(scanId) {
-    return request(`/scan-status/${scanId}`);
+  getScanStatus(scanId, options = {}) {
+    return request(`/scan-status/${scanId}`, options);
   },
 
   getScanResult(scanId) {
     return request(`/scan-result/${scanId}`);
+  },
+
+  getAIReviewStatus(scanId) {
+    return request(`/scans/${scanId}/ai-review-status`);
   },
 
   cancelScan(scanId) {
@@ -316,7 +325,7 @@ export const backendApi = {
 
   getScanWebSocketUrl(scanId) {
     const token = authStorage.getToken();
-    const wsBase = activeApiBaseUrl.replace(/^http/, 'ws').replace(/\/api\/v1$/, '');
+    const wsBase = API_BASE_URL.replace(/^http/, 'ws').replace(/\/api\/v1$/, '');
     return `${wsBase}/api/v1/ws/scan-status/${encodeURIComponent(scanId)}?token=${encodeURIComponent(token || '')}`;
   },
 
@@ -351,7 +360,7 @@ export const backendApi = {
 
   async downloadVulnerabilityReport(id, format = 'pdf') {
     const token = authStorage.getToken();
-    const response = await fetchWithFallback(`/vulnerabilities/${id}/report?format=${encodeURIComponent(format)}`, {
+    const response = await fetchFromConfiguredApi(`/vulnerabilities/${id}/report?format=${encodeURIComponent(format)}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!response.ok) {
@@ -380,7 +389,7 @@ export const backendApi = {
 
   async downloadReport(scanId, format = 'pdf') {
     const token = authStorage.getToken();
-    const response = await fetchWithFallback(`/report/${scanId}?format=${encodeURIComponent(format)}`, {
+    const response = await fetchFromConfiguredApi(`/report/${scanId}?format=${encodeURIComponent(format)}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!response.ok) {

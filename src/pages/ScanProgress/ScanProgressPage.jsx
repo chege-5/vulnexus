@@ -22,90 +22,162 @@ export default function ScanProgressPage() {
   const [error, setError] = useState('');
   const [elapsed, setElapsed] = useState(0);
   const [showCompletion, setShowCompletion] = useState(false);
-  const completionTimer = useRef(null);
+  const socketRef = useRef(null);
+  const socketConnectTimerRef = useRef(null);
+  const pollTimerRef = useRef(null);
+  const pollAbortRef = useRef(null);
+  const pollingRef = useRef(false);
+  const pollInFlightRef = useRef(false);
+  const pollBackoffRef = useRef(5000);
+  const activeScanIdRef = useRef(null);
+  const terminalRef = useRef(false);
+  const stopTrackingRef = useRef(() => {});
 
-  useEffect(() => {
-    return () => {
-      if (completionTimer.current) window.clearTimeout(completionTimer.current);
-    };
-  }, []);
+  const completeScan = useCallback(() => {
+    if (terminalRef.current) return;
 
-  const completeScan = useCallback(async () => {
-    if (completionTimer.current) return;
-
+    terminalRef.current = true;
+    stopTrackingRef.current();
     setShowCompletion(true);
-    try {
-      const result = await backendApi.getScanResult(scanId);
-      setResultPreview(result);
-    } catch {
-      // Result polling can complete a beat later; the results page will fetch again.
-    }
-
-    completionTimer.current = window.setTimeout(() => {
-      navigate(`/dashboard/scan/results/${scanId}`, {
-        replace: true,
-        state: { target, scanType },
-      });
-    }, 950);
+    navigate(`/dashboard/scan/results/${scanId}`, {
+      replace: true,
+      state: { target, scanType },
+    });
   }, [navigate, scanId, scanType, target]);
 
   useEffect(() => {
     if (!scanId) return undefined;
+    setElapsed(0);
     const timer = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(timer);
   }, [scanId]);
 
   useEffect(() => {
     if (!scanId) return undefined;
-    let socket;
-    try {
-      socket = new WebSocket(backendApi.getScanWebSocketUrl(scanId));
-      socket.onmessage = (event) => {
-        try {
-          const payload = JSON.parse(event.data);
-          setStatusData((prev) => ({ ...(prev || {}), ...payload }));
-          if (payload.status === 'completed') {
-            completeScan();
-          }
-        } catch {
-          // Ignore malformed websocket payloads; polling remains as fallback.
-        }
-      };
-    } catch {
-      return undefined;
-    }
-    return () => {
-      if (socket && socket.readyState < 2) socket.close();
+    let disposed = false;
+    activeScanIdRef.current = scanId;
+    terminalRef.current = false;
+    pollBackoffRef.current = 5000;
+    pollingRef.current = false;
+    setError('');
+    setShowCompletion(false);
+    setResultPreview(null);
+
+    const isActive = () => !disposed
+      && activeScanIdRef.current === scanId
+      && !terminalRef.current;
+
+    const stopTracking = () => {
+      if (socketConnectTimerRef.current) {
+        window.clearTimeout(socketConnectTimerRef.current);
+        socketConnectTimerRef.current = null;
+      }
+      if (pollTimerRef.current) {
+        window.clearTimeout(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+      pollAbortRef.current?.abort();
+      pollAbortRef.current = null;
+      pollInFlightRef.current = false;
+      pollingRef.current = false;
+
+      const socket = socketRef.current;
+      socketRef.current = null;
+      if (socket && socket.readyState < WebSocket.CLOSING) socket.close();
     };
-  }, [scanId, completeScan]);
 
-  useEffect(() => {
-    if (!scanId) return undefined;
+    stopTrackingRef.current = stopTracking;
 
-    let cancelled = false;
+    const handleStatus = (payload) => {
+      if (!isActive()) return;
+      setStatusData((previous) => ({ ...(previous || {}), ...payload }));
+      setError('');
 
-    const poll = async () => {
-      try {
-        const status = await backendApi.getScanStatus(scanId);
-        if (cancelled) return;
-        setStatusData(status);
-        setError('');
-
-        if (status.status === 'completed') {
-          if (!cancelled) completeScan();
-        } else if (status.status === 'failed') {
-          setError('Scan failed. Please try again from New Scan.');
-        }
-      } catch (err) {
-        if (!cancelled) setError(err.message || 'Failed to fetch scan status');
+      if (payload.status === 'completed') {
+        completeScan();
+      } else if (payload.status === 'failed' || payload.status === 'canceled') {
+        terminalRef.current = true;
+        stopTracking();
+        setError(payload.error_message || (payload.status === 'failed'
+          ? 'Scan failed. Please try again from New Scan.'
+          : 'Scan was canceled.'));
       }
     };
 
-    poll();
-    const interval = setInterval(poll, 2000);
+    const startPolling = () => {
+      if (!isActive() || pollingRef.current) return;
+      pollingRef.current = true;
+
+      const socket = socketRef.current;
+      socketRef.current = null;
+      if (socket && socket.readyState < WebSocket.CLOSING) socket.close();
+
+      const schedulePoll = (delay) => {
+        if (!isActive() || pollTimerRef.current) return;
+        pollTimerRef.current = window.setTimeout(async () => {
+          pollTimerRef.current = null;
+          if (!isActive() || pollInFlightRef.current) return;
+
+          const controller = new AbortController();
+          pollAbortRef.current = controller;
+          pollInFlightRef.current = true;
+          try {
+            const payload = await backendApi.getScanStatus(scanId, { signal: controller.signal });
+            if (!isActive() || controller.signal.aborted) return;
+            pollBackoffRef.current = 5000;
+            handleStatus(payload);
+          } catch (requestError) {
+            if (!isActive() || controller.signal.aborted) return;
+            pollBackoffRef.current = Math.min(pollBackoffRef.current * 2, 60000);
+            setError(requestError?.status === 429
+              ? 'Status updates are temporarily rate limited. Retrying shortly.'
+              : 'Status service is unavailable. Retrying shortly.');
+          } finally {
+            if (pollAbortRef.current === controller) pollAbortRef.current = null;
+            pollInFlightRef.current = false;
+            if (isActive()) schedulePoll(pollBackoffRef.current);
+          }
+        }, delay);
+      };
+
+      schedulePoll(0);
+    };
+
+    // Deferring connection one task lets StrictMode clean up its development
+    // probe before a socket is created, leaving one live socket per scan.
+    socketConnectTimerRef.current = window.setTimeout(() => {
+      if (!isActive()) return;
+      try {
+        const socket = new WebSocket(backendApi.getScanWebSocketUrl(scanId));
+        socketRef.current = socket;
+
+        socket.onopen = () => {
+          if (isActive() && socketRef.current === socket) setError('');
+        };
+        socket.onmessage = (event) => {
+          if (!isActive() || socketRef.current !== socket) return;
+          try {
+            handleStatus(JSON.parse(event.data));
+          } catch {
+            // Malformed messages do not make the live connection unusable.
+          }
+        };
+        socket.onerror = () => {
+          if (isActive() && socketRef.current === socket) startPolling();
+        };
+        socket.onclose = () => {
+          if (isActive() && socketRef.current === socket) startPolling();
+        };
+      } catch {
+        startPolling();
+      }
+    }, 0);
+
     return () => {
-      cancelled = true;
-      clearInterval(interval);
+      disposed = true;
+      stopTracking();
+      if (activeScanIdRef.current === scanId) activeScanIdRef.current = null;
+      if (stopTrackingRef.current === stopTracking) stopTrackingRef.current = () => {};
     };
   }, [scanId, completeScan]);
 

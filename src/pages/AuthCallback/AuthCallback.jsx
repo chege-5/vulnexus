@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Loader, ShieldAlert } from 'lucide-react';
+import { CheckCircle2, Loader, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getPostLoginPath } from '../../utils/authRoles';
 import './AuthCallback.css';
@@ -25,13 +25,22 @@ function getOAuthErrorMessage(provider, errorText = '') {
   return `${label} sign-in could not be completed. Please try again.`;
 }
 
+function getOAuthRedirectUri(provider) {
+  const configuredOrigin = import.meta.env.VITE_OAUTH_CALLBACK_ORIGIN?.trim().replace(/\/$/, '');
+  const origin = configuredOrigin || window.location.origin;
+  return `${origin}/auth/${provider}/callback`;
+}
+
 export default function AuthCallback() {
   const { provider } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { completeOAuthCallback } = useAuth();
   const [error, setError] = useState('');
-  const [status, setStatus] = useState('Completing secure authentication...');
+  const [status, setStatus] = useState('Exchanging secure authorization...');
+  const [authenticated, setAuthenticated] = useState(false);
+  const callbackExchangeRef = useRef(null);
+  const redirectTimerRef = useRef(null);
   const code = searchParams.get('code');
   const state = searchParams.get('state');
   const oauthError = searchParams.get('error_description') || searchParams.get('error');
@@ -43,25 +52,39 @@ export default function AuthCallback() {
     }
 
     let cancelled = false;
-    const redirectUri = `${window.location.origin}/auth/${provider}/callback`;
+    const redirectUri = getOAuthRedirectUri(provider);
+    const callbackKey = `${provider}:${code}:${state}`;
 
-    (async () => {
-      try {
-        if (oauthError) {
-          throw new Error(oauthError);
-        }
-        setStatus(`Exchanging ${provider} authorization code...`);
-        const session = await completeOAuthCallback(provider, code, redirectUri, state);
+    // OAuth authorization codes are one-time use. In StrictMode, the first
+    // effect cleanup runs before the request resolves; the second effect joins
+    // the same promise instead of sending a second code-exchange request.
+    if (callbackExchangeRef.current?.key !== callbackKey) {
+      callbackExchangeRef.current = {
+        key: callbackKey,
+        promise: completeOAuthCallback(provider, code, redirectUri, state),
+      };
+    }
+
+    callbackExchangeRef.current.promise
+      .then((session) => {
         if (cancelled) return;
-        navigate(getPostLoginPath(session.user), { replace: true });
-      } catch (err) {
+        setAuthenticated(true);
+        setStatus(`${provider[0].toUpperCase()}${provider.slice(1)} account connected. Redirecting to your workspace...`);
+        redirectTimerRef.current = window.setTimeout(() => {
+          navigate(getPostLoginPath(session.user), { replace: true });
+        }, 1500);
+      })
+      .catch((err) => {
         if (cancelled) return;
         setError(getOAuthErrorMessage(provider, err.message));
-      }
-    })();
+      });
 
     return () => {
       cancelled = true;
+      if (redirectTimerRef.current) {
+        window.clearTimeout(redirectTimerRef.current);
+        redirectTimerRef.current = null;
+      }
     };
   }, [provider, code, state, oauthError, missingCallbackParams, completeOAuthCallback, navigate]);
 
@@ -72,9 +95,15 @@ export default function AuthCallback() {
   return (
     <div className="auth-callback-page">
       <div className="auth-callback-card">
-        <ShieldAlert size={40} />
-        <h1>Completing secure authentication</h1>
-        {visibleError ? <p className="auth-callback-error">{visibleError}</p> : <p>{status} <Loader size={16} className="spin" /></p>}
+        {authenticated ? <CheckCircle2 size={52} className="oauth-success-icon" /> : <ShieldAlert size={40} />}
+        <h1>{authenticated ? 'Authentication complete' : 'Completing secure authentication'}</h1>
+        {visibleError ? (
+          <p className="auth-callback-error">{visibleError}</p>
+        ) : (
+          <p className={authenticated ? 'oauth-redirecting' : ''}>
+            {status} <Loader size={16} className="spin" />
+          </p>
+        )}
       </div>
     </div>
   );

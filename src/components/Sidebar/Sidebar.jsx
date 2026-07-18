@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Scan, FileText, Bug, Settings,
@@ -23,13 +24,20 @@ const navItems = [
 
 export default function Sidebar({ open, onClose }) {
   const location = useLocation();
+  const sidebarRef = useRef(null);
+
+  useEffect(() => {
+    if (open || !sidebarRef.current?.contains(document.activeElement)) return;
+    document.activeElement?.blur();
+  }, [open]);
 
   return (
     <aside
+      ref={sidebarRef}
       className={`sidebar ${open ? 'open' : ''}`}
       role="navigation"
       aria-label="Main navigation"
-      aria-hidden={!open}
+      inert={open ? undefined : ''}
     >
       <div className="sidebar-header">
         <div className="sidebar-logo">
