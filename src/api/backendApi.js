@@ -468,8 +468,11 @@ export const backendApi = {
     });
   },
 
-  adminGetUsers() {
-    return request('/admin/users');
+  adminGetUsers({ offset = 0, limit = 25, query = '', approval = '' } = {}) {
+    const params = new URLSearchParams({ offset: String(offset), limit: String(limit) });
+    if (query.trim()) params.set('query', query.trim());
+    if (approval) params.set('approval', approval);
+    return request(`/admin/users?${params.toString()}`);
   },
 
   adminApproveUser(userId, isApproved) {
@@ -496,8 +499,8 @@ export const backendApi = {
     });
   },
 
-  adminCommunicate(userId, title, message, type = 'info', sendEmail = true) {
-    return request('/admin/communicate', {
+  adminCommunicate(userId, title, message, type = 'info', sendEmail = false) {
+    return request('/admin/communications', {
       method: 'POST',
       body: JSON.stringify({
         user_id: userId || null,
@@ -507,6 +510,76 @@ export const backendApi = {
         send_email: sendEmail,
       }),
     });
+  },
+
+  adminGetUserDetail(userId) {
+    return request(`/admin/users/${userId}`);
+  },
+
+  adminBulkApproval(userIds, isApproved, reason = '') {
+    return request('/admin/users/bulk-approval', {
+      method: 'POST',
+      body: JSON.stringify({ user_ids: userIds, is_approved: isApproved, reason }),
+    });
+  },
+
+  adminGetAuditLogs(limit = 50, { action = '', resource = '' } = {}) {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (action.trim()) params.set('action', action.trim());
+    if (resource) params.set('resource', resource);
+    return request(`/admin/audit-logs?${params.toString()}`);
+  },
+
+  adminGetCommunicationHistory(limit = 50) {
+    return request(`/admin/communications/history?limit=${limit}`);
+  },
+
+  adminGetFindings({ offset = 0, limit = 25, status = '', severity = '', query = '' } = {}) {
+    const params = new URLSearchParams({ offset: String(offset), limit: String(limit) });
+    if (status) params.set('status', status);
+    if (severity) params.set('severity', severity);
+    if (query.trim()) params.set('query', query.trim());
+    return request(`/admin/findings?${params.toString()}`);
+  },
+
+  adminUpdateFinding(findingId, payload) {
+    return request(`/admin/findings/${findingId}`, { method: 'PATCH', body: JSON.stringify(payload) });
+  },
+
+  adminGetScans({ offset = 0, limit = 25, status = '' } = {}) {
+    const params = new URLSearchParams({ offset: String(offset), limit: String(limit) });
+    if (status) params.set('status', status);
+    return request(`/admin/scans?${params.toString()}`);
+  },
+
+  adminRetryScan(scanId) {
+    return request(`/admin/scans/${scanId}/retry`, { method: 'POST' });
+  },
+
+  adminGetDecisionQueue() {
+    return request('/admin/decision-queue');
+  },
+
+  adminGetWorkspace() {
+    return request('/admin/workspace');
+  },
+
+  adminUpdateWorkspace(settings) {
+    return request('/admin/workspace', { method: 'PATCH', body: JSON.stringify(settings) });
+  },
+
+  adminCreateSavedView(payload) {
+    return request('/admin/workspace/saved-views', { method: 'POST', body: JSON.stringify(payload) });
+  },
+
+  adminDeleteSavedView(viewId) {
+    return request(`/admin/workspace/saved-views/${viewId}`, { method: 'DELETE' });
+  },
+
+  async adminDownloadExport(kind) {
+    const payload = await request(`/admin/export/${kind}.csv`);
+    downloadBlob(new Blob([payload], { type: 'text/csv;charset=utf-8' }), `vulnexus-${kind}.csv`);
+    return true;
   },
 
   adminGetAnalytics() {

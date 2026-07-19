@@ -1,0 +1,19 @@
+import { useCallback, useEffect, useState } from 'react';
+import { ArrowLeft, CheckCircle, FileClock, ShieldAlert, UserRound } from 'lucide-react';
+import { Link, useParams } from 'react-router-dom';
+import { backendApi } from '../../api/backendApi';
+import ErrorState from '../../components/ErrorState/ErrorState';
+import { formatTimestamp, messageFrom } from './adminPageUtils';
+import './AdminPages.css';
+
+export default function AdminUserDetail() {
+  const { userId } = useParams(); const [data, setData] = useState(null); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
+  const load = useCallback(async () => { setLoading(true); setError(''); try { setData(await backendApi.adminGetUserDetail(userId)); } catch (err) { setError(messageFrom(err, 'Unable to load this user.')); } finally { setLoading(false); } }, [userId]);
+  useEffect(() => { load(); }, [load]);
+  if (loading) return <div className="admin-page-loading">Loading account detail…</div>;
+  if (error) return <ErrorState message={error} onRetry={load} />;
+  const user = data.user;
+  return <div className="admin-page"><Link className="admin-back-link" to="/admin/users"><ArrowLeft size={15} /> Back to users</Link><section className="admin-page-hero compact"><div><span className="admin-eyebrow"><UserRound size={14} /> Account detail</span><h2>{user.name || user.email}</h2><p>{user.email} · joined {formatTimestamp(user.created_at)}</p></div><span className={`admin-access-button ${user.is_approved ? 'approved' : 'blocked'}`}>{user.is_approved ? 'Approved' : 'Blocked'}</span></section><section className="admin-kpis"><article><CheckCircle size={20} /><span>Plan</span><strong>{user.subscription_tier}</strong><small>{user.subscription_status}</small></article><article><ShieldAlert size={20} /><span>Open findings</span><strong>{data.finding_status_counts.open}</strong><small>{data.finding_status_counts.resolved} resolved</small></article><article><UserRound size={20} /><span>Scans</span><strong>{data.scan_count}</strong><small>{user.scan_count} recorded</small></article><article><FileClock size={20} /><span>Last login</span><strong>{user.last_login ? formatTimestamp(user.last_login).split(',')[0] : 'Never'}</strong><small>{user.last_login ? formatTimestamp(user.last_login).split(',').slice(1).join(',') : 'No successful login'}</small></article></section><section className="admin-grid admin-grid-2"><article className="admin-card"><header><WorkflowIcon /><h3>Recent scans</h3></header><div className="admin-recent-list">{data.scans.length ? data.scans.map((scan) => <div key={scan.id}><span><b>{scan.target}</b><small>{scan.type} · {formatTimestamp(scan.queued_at)}</small></span><em className={`status-${scan.status}`}>{scan.status}</em></div>) : <p className="admin-empty">No scans recorded.</p>}</div></article><article className="admin-card"><header><ShieldAlert size={17} /><h3>Recent findings</h3></header><div className="admin-recent-list">{data.findings.length ? data.findings.slice(0, 10).map((finding) => <div key={finding.id}><span><b>{finding.title}</b><small>{finding.target} · {formatTimestamp(finding.created_at)}</small></span><em className={`finding-severity ${finding.severity.toLowerCase()}`}>{finding.severity}</em></div>) : <p className="admin-empty">No findings recorded.</p>}</div></article></section><section className="admin-card"><header><FileClock size={17} /><h3>Account audit history</h3></header><div className="admin-audit-list">{data.audit_events.length ? data.audit_events.map((event) => <article key={event.id}><div><strong>{event.action.replaceAll('.', ' ')}</strong><small>{formatTimestamp(event.created_at)}</small></div><code>{JSON.stringify(event.details)}</code></article>) : <p className="admin-empty">No account-specific actions recorded.</p>}</div></section></div>;
+}
+
+function WorkflowIcon() { return <span className="admin-header-icon">↗</span>; }

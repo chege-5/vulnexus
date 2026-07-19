@@ -1,0 +1,1 @@
+function t(r){if(!r)return"Not recorded";const e=new Date(r);return Number.isNaN(e.getTime())?"Not recorded":e.toLocaleString()}function n(r,e){return r?.message||e}function o(r,e){return e?Math.round(r/e*100):0}export{t as f,n as m,o as p};

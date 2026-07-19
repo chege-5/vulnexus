@@ -1,4 +1,4 @@
-const ADMIN_ROLES = new Set(['admin', 'super_admin']);
+const ADMIN_ROLES = new Set(['admin']);
 
 export function getUserRole(user) {
   return String(user?.role || '').trim().toLowerCase();

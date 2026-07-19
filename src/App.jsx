@@ -6,7 +6,7 @@ import IntroLoader from './components/IntroLoader/IntroLoader';
 import PageTransitionLoader from './components/PageTransitionLoader/PageTransitionLoader';
 import { SkeletonPage } from './components/SkeletonLoader/SkeletonLoader';
 import { publicRoutes } from './pages/Marketing/marketingContent';
-import SuperAdminLayout from './layouts/admin/SuperAdminLayout';
+import AdminLayout from './layouts/admin/AdminLayout';
 import UserLayout from './layouts/user/UserLayout';
 import { isAdminUser } from './utils/authRoles';
 
@@ -33,7 +33,16 @@ const ScanHistory = lazy(() => import('./pages/ScanHistory/ScanHistory'));
 const Notifications = lazy(() => import('./pages/Notifications/Notifications'));
 const Help = lazy(() => import('./pages/Help/Help'));
 const SubscriptionPage = lazy(() => import('./pages/Subscription/SubscriptionPage'));
-const AdminPortal = lazy(() => import('./pages/Admin/AdminPortal'));
+const AdminOverview = lazy(() => import('./pages/Admin/AdminOverview'));
+const AdminUsers = lazy(() => import('./pages/Admin/AdminUsers'));
+const AdminAnalytics = lazy(() => import('./pages/Admin/AdminAnalytics'));
+const AdminActivity = lazy(() => import('./pages/Admin/AdminActivity'));
+const AdminCommunications = lazy(() => import('./pages/Admin/AdminCommunications'));
+const AdminOperations = lazy(() => import('./pages/Admin/AdminOperations'));
+const AdminFindings = lazy(() => import('./pages/Admin/AdminFindings'));
+const AdminScans = lazy(() => import('./pages/Admin/AdminScans'));
+const AdminUserDetail = lazy(() => import('./pages/Admin/AdminUserDetail'));
+const AdminSettings = lazy(() => import('./pages/Admin/AdminSettings'));
 
 const INTRO_STORAGE_KEY = 'vulnexus:intro-loader-seen';
 
@@ -230,14 +239,20 @@ export default function App() {
           </Route>
 
           <Route element={<AdminRoute />}>
-            <Route path="/admin/*" element={<SuperAdminLayout />}>
-              <Route index element={<AdminPortal />} />
-              <Route path="users" element={<AdminPortal />} />
-              <Route path="roles" element={<AdminPortal />} />
-              <Route path="analytics" element={<AdminPortal />} />
-              <Route path="audit-logs" element={<AdminPortal />} />
-              <Route path="settings" element={<AdminPortal />} />
-              <Route path="notifications" element={<AdminPortal />} />
+            <Route path="/admin/*" element={<AdminLayout />}>
+              <Route index element={<AdminOverview />} />
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="users/:userId" element={<AdminUserDetail />} />
+              <Route path="analytics" element={<AdminAnalytics />} />
+              <Route path="findings" element={<AdminFindings />} />
+              <Route path="scans" element={<AdminScans />} />
+              <Route path="activity" element={<AdminActivity />} />
+              <Route path="communications" element={<AdminCommunications />} />
+              <Route path="operations" element={<AdminOperations />} />
+              <Route path="settings" element={<AdminSettings />} />
+              <Route path="roles" element={<Navigate to="/admin/users" replace />} />
+              <Route path="audit-logs" element={<Navigate to="/admin/activity" replace />} />
+              <Route path="notifications" element={<Navigate to="/admin/communications" replace />} />
               <Route path="*" element={<Navigate to="/admin" replace />} />
             </Route>
           </Route>
