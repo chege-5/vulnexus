@@ -3,7 +3,10 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Loader, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getPostLoginPath } from '../../utils/authRoles';
+import { getOAuthRedirectUri, isSupportedOAuthProvider } from '../../utils/oauth';
 import './AuthCallback.css';
+
+const oauthCallbackOrigin = import.meta.env.VITE_OAUTH_CALLBACK_ORIGIN || '';
 
 function getOAuthErrorMessage(provider, errorText = '') {
   const label = provider ? `${provider[0].toUpperCase()}${provider.slice(1)}` : 'OAuth';
@@ -25,12 +28,6 @@ function getOAuthErrorMessage(provider, errorText = '') {
   return `${label} sign-in could not be completed. Please try again.`;
 }
 
-function getOAuthRedirectUri(provider) {
-  const configuredOrigin = import.meta.env.VITE_OAUTH_CALLBACK_ORIGIN?.trim().replace(/\/$/, '');
-  const origin = configuredOrigin || window.location.origin;
-  return `${origin}/auth/${provider}/callback`;
-}
-
 export default function AuthCallback() {
   const { provider } = useParams();
   const [searchParams] = useSearchParams();
@@ -44,15 +41,15 @@ export default function AuthCallback() {
   const code = searchParams.get('code');
   const state = searchParams.get('state');
   const oauthError = searchParams.get('error_description') || searchParams.get('error');
-  const missingCallbackParams = !provider || !code || !state;
+  const missingCallbackParams = !isSupportedOAuthProvider(provider) || !code || !state;
 
   useEffect(() => {
-    if (missingCallbackParams) {
+    if (oauthError || missingCallbackParams) {
       return;
     }
 
     let cancelled = false;
-    const redirectUri = getOAuthRedirectUri(provider);
+    const redirectUri = getOAuthRedirectUri(provider, oauthCallbackOrigin, window.location.origin);
     const callbackKey = `${provider}:${code}:${state}`;
 
     // OAuth authorization codes are one-time use. In StrictMode, the first

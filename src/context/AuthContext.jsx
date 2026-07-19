@@ -1,13 +1,9 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { authStorage, backendApi } from '../api/backendApi';
+import { getOAuthRedirectUri } from '../utils/oauth';
 
 const AuthContext = createContext();
-
-function getOAuthRedirectUri(provider) {
-  const configuredOrigin = import.meta.env.VITE_OAUTH_CALLBACK_ORIGIN?.trim().replace(/\/$/, '');
-  const origin = configuredOrigin || window.location.origin;
-  return `${origin}/auth/${provider}/callback`;
-}
+const oauthCallbackOrigin = import.meta.env.VITE_OAUTH_CALLBACK_ORIGIN || '';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => authStorage.getUser());
@@ -52,7 +48,7 @@ export function AuthProvider({ children }) {
   };
 
   const beginOAuth = async (provider, flow = 'login') => {
-    const redirectUri = getOAuthRedirectUri(provider);
+    const redirectUri = getOAuthRedirectUri(provider, oauthCallbackOrigin, window.location.origin);
     const authorizationUrl = await backendApi.getOAuthStartUrl(provider, flow, redirectUri);
     window.location.assign(authorizationUrl);
   };
