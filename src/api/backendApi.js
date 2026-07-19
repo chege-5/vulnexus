@@ -198,10 +198,10 @@ export const backendApi = {
     });
   },
 
-  verifyEmail(token) {
+  verifyEmail(email, code) {
     return request('/auth/verify-email', {
       method: 'POST',
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({ email, code }),
     });
   },
 
@@ -261,10 +261,17 @@ export const backendApi = {
     });
   },
 
-  resetPassword(token, newPassword) {
+  validateResetCode(email, code) {
+    return request('/auth/validate-reset-code', {
+      method: 'POST',
+      body: JSON.stringify({ email, code }),
+    });
+  },
+
+  resetPassword(email, code, newPassword) {
     return request('/auth/reset-password', {
       method: 'POST',
-      body: JSON.stringify({ token, new_password: newPassword }),
+      body: JSON.stringify({ email, code, new_password: newPassword }),
     });
   },
 

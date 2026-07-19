@@ -17,6 +17,7 @@ const Login = lazy(() => import('./pages/Login/Login'));
 const Signup = lazy(() => import('./pages/Signup/Signup'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword/ResetPassword'));
+const VerifyResetCode = lazy(() => import('./pages/ResetPassword/VerifyResetCode'));
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail/VerifyEmail'));
 const AuthCallback = lazy(() => import('./pages/AuthCallback/AuthCallback'));
 const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'));
@@ -166,6 +167,14 @@ export default function App() {
           element={
             <Suspense fallback={<SkeletonPage />}>
               <ResetPassword />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/reset-password/verify"
+          element={
+            <Suspense fallback={<SkeletonPage />}>
+              <VerifyResetCode />
             </Suspense>
           }
         />

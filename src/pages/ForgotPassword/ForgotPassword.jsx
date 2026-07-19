@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, Loader, Mail } from 'lucide-react';
 import logo from '../../assets/logo.png';
 import { backendApi } from '../../api/backendApi';
@@ -7,11 +7,11 @@ import '../Login/Login.css';
 import './ForgotPassword.css';
 
 export default function ForgotPassword() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [devToken, setDevToken] = useState('');
 
   const emailInvalid = email.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
@@ -19,7 +19,6 @@ export default function ForgotPassword() {
     event.preventDefault();
     setError('');
     setMessage('');
-    setDevToken('');
 
     if (!email || emailInvalid) {
       setError('Enter a valid email address');
@@ -28,11 +27,11 @@ export default function ForgotPassword() {
 
     setLoading(true);
     try {
+      // Overlap the next route's chunk download with the API request.
+      void import('../ResetPassword/VerifyResetCode');
       const response = await backendApi.forgotPassword(email);
-      setMessage(response.message || 'If the account exists, reset instructions have been generated.');
-      if (response.reset_token_dev) {
-        setDevToken(response.reset_token_dev);
-      }
+      setMessage(response.message || 'If the account exists, a six-digit reset code has been sent.');
+      navigate(`/reset-password/verify?email=${encodeURIComponent(email.trim().toLowerCase())}`);
     } catch (err) {
       setError(err.message || 'Unable to start password reset');
     } finally {
@@ -41,13 +40,18 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="login-page">
-      <div className="login-bg-gradient" />
-      <div className="login-container reset-container">
-        <form className="login-form reset-form" onSubmit={handleSubmit}>
-          <img src={logo} alt="Vulnexus logo" className="reset-logo" />
-          <h2 className="login-form-title">Reset your password</h2>
-          <p className="login-form-subtitle">Enter your account email and we will generate a secure reset token.</p>
+    <main className="auth-flow-page" aria-labelledby="forgot-password-title">
+      <span className="auth-flow-orbit orbit-one" aria-hidden="true" />
+      <span className="auth-flow-orbit orbit-two" aria-hidden="true" />
+      <section className="auth-flow-card">
+        <form className="login-form reset-form auth-flow-form" onSubmit={handleSubmit} aria-busy={loading}>
+          <div className="auth-flow-brand">
+            <img src={logo} alt="Vulnexus logo" className="reset-logo" />
+            <div><span>VULNEXUS SECURITY</span><strong>Account recovery</strong></div>
+          </div>
+          <div className="auth-flow-steps" aria-label="Password reset progress"><span className="active">1</span><i /><span>2</span><i /><span>3</span></div>
+          <h2 id="forgot-password-title" className="login-form-title">Reset your password</h2>
+          <p className="login-form-subtitle">Tell us where to send your private six-digit recovery code. It expires in 30 minutes.</p>
 
           {error && <div className="login-error" role="alert">{error}</div>}
           {message && <div className="reset-success" role="status"><Check size={16} /> {message}</div>}
@@ -69,23 +73,13 @@ export default function ForgotPassword() {
             {emailInvalid && <span className="field-hint danger">Enter a valid email address.</span>}
           </div>
 
-          {devToken && (
-            <div className="reset-dev-token">
-              <span>Development reset token</span>
-              <code>{devToken}</code>
-              <Link to={`/reset-password?token=${encodeURIComponent(devToken)}`} className="form-link">
-                Continue to reset <ArrowRight size={14} />
-              </Link>
-            </div>
-          )}
-
           <button type="submit" className="btn btn-primary btn-lg login-btn" disabled={loading}>
-            {loading ? <><Loader size={18} className="spin" /> Sending reset...</> : <>Send Reset Link <ArrowRight size={16} /></>}
+            {loading ? <><Loader size={18} className="spin" /> Sending code...</> : <>Send reset code <ArrowRight size={16} /></>}
           </button>
 
           <Link to="/login" className="reset-back-link"><ArrowLeft size={14} /> Back to sign in</Link>
         </form>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

@@ -78,7 +78,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, signIn, verifyMfaLogin, signUp, signOut, updateUser, beginOAuth, completeOAuthCallback, isAuthenticated: !!user, loading }}>
+    <AuthContext.Provider value={{ user, token, signIn, verifyMfaLogin, signUp, signOut, updateUser, beginOAuth, completeOAuthCallback, completeSession, isAuthenticated: !!user, loading }}>
       {!loading && children}
     </AuthContext.Provider>
   );

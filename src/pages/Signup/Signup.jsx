@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, BriefcaseBusiness, Building2, Check, Eye, EyeOff, Loader, Lock, Mail, Phone, Shield, Target, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { backendApi } from '../../api/backendApi';
 import {
   AuthCard,
   AuthInput,
@@ -31,12 +32,13 @@ const defaultMetadata = {
 };
 
 export default function Signup() {
-  const { signUp, beginOAuth } = useAuth();
+  const { signUp, signOut, beginOAuth } = useAuth();
   const navigate = useNavigate();
 
   const [step, setStep] = useState(1);
   const [screen, setScreen] = useState('form');
   const [resendLoading, setResendLoading] = useState(false);
+  const [verificationMessage, setVerificationMessage] = useState('');
   const [oauthLoading, setOauthLoading] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -115,8 +117,15 @@ export default function Signup() {
 
     setLoading(true);
     try {
-      await signUp(form.email, form.password, buildMetadata(includeWorkspace), { remember: true });
-      setScreen('verification');
+      // Start loading the next, lazy route while registration is in flight.
+      void import('../VerifyEmail/VerifyEmail');
+      const session = await signUp(form.email, form.password, buildMetadata(includeWorkspace), { remember: true });
+      if (session.user?.email_verified) {
+        navigate('/dashboard', { replace: true });
+      } else {
+        await signOut();
+        setScreen('verification');
+      }
     } catch (err) {
       setError(mapAuthError(err, 'Unable to create account. Please try again.'));
     } finally {
@@ -137,14 +146,17 @@ export default function Signup() {
 
   const handleResendVerification = async () => {
     setResendLoading(true);
+    setVerificationMessage('');
     try {
-      await Promise.resolve();
+      const response = await backendApi.resendVerification(form.email);
+      setVerificationMessage(response.message || 'If verification is required, a new email has been sent.');
+    } catch (err) {
+      setVerificationMessage(err.message || 'Unable to resend the verification email. Please try again shortly.');
     } finally {
       setResendLoading(false);
     }
   };
 
-  const showMfaPrompt = () => setScreen('mfa');
   const goDashboard = () => navigate('/dashboard');
 
   if (screen === 'verification') {
@@ -152,9 +164,9 @@ export default function Signup() {
       <VerificationPrompt
         email={form.email}
         onResend={handleResendVerification}
-        onDashboard={showMfaPrompt}
-        onSkip={showMfaPrompt}
+        onEnterCode={() => navigate(`/verify-email?email=${encodeURIComponent(form.email)}`)}
         resendLoading={resendLoading}
+        message={verificationMessage}
       />
     );
   }

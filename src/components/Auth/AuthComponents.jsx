@@ -1,4 +1,5 @@
 import { AlertTriangle, BadgeCheck, Check, Chrome, Github, KeyRound, LockKeyhole, Radar, ShieldCheck, Sparkles, UserCheck } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import logo from '../../assets/logo.png';
 import { useTypingEffect } from '../../hooks/useApi';
 import { getPasswordStrength } from './authUtils';
@@ -179,20 +180,23 @@ export function MFASetupPrompt({ onEnable, onLater, onSkip }) {
   );
 }
 
-export function VerificationPrompt({ email, onResend, onDashboard, onSkip, resendLoading }) {
+export function VerificationPrompt({ email, onResend, onEnterCode, resendLoading, message }) {
   return (
     <AuthLayout mode="verify" tagline="Verify ownership before relying on this account for team operations.">
       <AuthCard className="auth-state-card">
         <div className="state-icon success"><BadgeCheck size={36} /></div>
         <p className="auth-kicker centered"><ShieldCheck size={14} /> Account created successfully</p>
         <h2>Verify your email</h2>
-        <p>A verification email has been sent to <strong>{email}</strong>. Verify it before continuing for the strongest account posture.</p>
+        <p>A six-digit verification code has been sent to <strong>{email}</strong>. Enter it to activate your account.</p>
+        {message && <p className="field-hint">{message}</p>}
         <div className="state-actions">
-          <button type="button" className="btn btn-primary btn-lg" onClick={onResend} disabled={resendLoading}>
-            {resendLoading ? 'Sending...' : 'Verify Email / Resend Verification Email'}
+          <button type="button" className="btn btn-primary btn-lg" onClick={onEnterCode}>
+            Enter verification code
           </button>
-          <button type="button" className="btn btn-secondary btn-lg" onClick={onDashboard}>Go to Dashboard</button>
-          <button type="button" className="btn btn-ghost btn-lg" onClick={onSkip}>Skip for now</button>
+          <button type="button" className="btn btn-secondary btn-lg" onClick={onResend} disabled={resendLoading}>
+            {resendLoading ? 'Sending...' : 'Resend code'}
+          </button>
+          <Link to="/login" className="btn btn-ghost btn-lg">Back to sign in</Link>
         </div>
       </AuthCard>
     </AuthLayout>
