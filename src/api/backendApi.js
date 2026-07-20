@@ -1,10 +1,13 @@
-const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+import { buildOAuthLoginUrl, normalizeApiOrigin } from './oauthNavigation.js';
 
-if (!configuredApiBaseUrl) {
-  throw new Error('VITE_API_BASE_URL must be configured. VulNexus will not choose a backend automatically.');
+const configuredApiOrigin = import.meta.env.VITE_API_URL?.trim();
+
+if (!configuredApiOrigin) {
+  throw new Error('VITE_API_URL must be configured to the Railway backend origin. VulNexus will not choose a backend automatically.');
 }
 
-const API_BASE_URL = configuredApiBaseUrl.replace(/\/$/, '');
+const API_ORIGIN = normalizeApiOrigin(configuredApiOrigin);
+const API_BASE_URL = `${API_ORIGIN}/api/v1`;
 // Access tokens are deliberately memory-only. The long-lived refresh token is
 // an HttpOnly, Secure cookie managed by the API and cannot be read by scripts.
 let accessToken = null;
@@ -122,10 +125,7 @@ export const backendApi = {
   },
 
   getOAuthLoginUrl(provider, flow = 'login') {
-    if (!['google', 'github'].includes(provider)) {
-      throw new Error('Unsupported OAuth provider');
-    }
-    return `${API_BASE_URL}/auth/${provider}/login?${new URLSearchParams({ flow }).toString()}`;
+    return buildOAuthLoginUrl(API_ORIGIN, provider, flow);
   },
 
   logout() {

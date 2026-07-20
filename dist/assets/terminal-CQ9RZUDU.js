@@ -1,1 +1,0 @@
-import{c as e}from"./index-Bm1ImEE4.js";const o=[["path",{d:"m18 16 4-4-4-4",key:"1inbqp"}],["path",{d:"m6 8-4 4 4 4",key:"15zrgr"}],["path",{d:"m14.5 4-5 16",key:"e7oirm"}]],c=e("code-xml",o);const t=[["path",{d:"M12 19h8",key:"baeox8"}],["path",{d:"m4 17 6-6-6-6",key:"1yngyt"}]],m=e("terminal",t);export{c as C,m as T};
