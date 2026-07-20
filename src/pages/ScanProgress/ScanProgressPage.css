@@ -163,6 +163,25 @@
   opacity: 0;
 }
 
+@media (max-width: 640px) {
+  .scan-progress-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pipeline-module-row {
+    grid-template-columns: 1fr;
+  }
+
+  .scan-progress-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .scan-progress-actions .btn {
+    width: 100%;
+  }
+}
+
 @media (max-width: 1024px) {
   .scan-progress-grid {
     grid-template-columns: 1fr;

@@ -16,6 +16,14 @@ const tabs = [
   { id: 'api', icon: Key, label: 'Provider Access' },
 ];
 
+const notificationOptions = [
+  { key: 'critical_finding', label: 'Critical and high findings', defaultValue: false },
+  { key: 'scan_completed', label: 'Scan completions', defaultValue: true },
+  { key: 'scan_failed', label: 'Scan failures', defaultValue: true },
+  { key: 'report_ready', label: 'Report ready', defaultValue: true },
+  { key: 'subscription', label: 'Subscription updates', defaultValue: true },
+];
+
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('profile');
   const { theme, toggleTheme } = useTheme();
@@ -32,17 +40,46 @@ export default function Settings() {
   const [mfaPassword, setMfaPassword] = useState('');
   const [mfaRecoveryCodes, setMfaRecoveryCodes] = useState([]);
   const [mfaMessage, setMfaMessage] = useState('');
-
-  // Controlled profile fields — initialized from localStorage or user context
-  const storedSettings = (() => {
-    try { return JSON.parse(localStorage.getItem('cs-settings') || '{}'); } catch { return {}; }
-  })();
-  const [name, setName] = useState(storedSettings.name ?? user?.name ?? '');
-  const [email, setEmail] = useState(storedSettings.email ?? user?.email ?? '');
-  const [timezone, setTimezone] = useState(storedSettings.timezone ?? 'UTC');
+  const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState('');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [company, setCompany] = useState('');
+  const [jobRole, setJobRole] = useState('');
+  const [securityFocus, setSecurityFocus] = useState('');
+  const [emailPreferences, setEmailPreferences] = useState({});
+  const [emailPreferencesLoading, setEmailPreferencesLoading] = useState(false);
+  const [emailPreferencesError, setEmailPreferencesError] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    let cancelled = false;
+    setProfileLoading(true);
+    setProfileError('');
+    backendApi.getMe()
+      .then((currentProfile) => {
+        if (cancelled) return;
+        setProfile(currentProfile);
+        setName(currentProfile.name || '');
+        setPhone(currentProfile.phone || '');
+        setCompany(currentProfile.company || '');
+        setJobRole(currentProfile.job_role || '');
+        setSecurityFocus(currentProfile.security_focus || '');
+      })
+      .catch((err) => {
+        if (!cancelled) setProfileError(err.message || 'Unable to load your profile.');
+      })
+      .finally(() => {
+        if (!cancelled) setProfileLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     if (activeTab !== 'connected') return;
@@ -67,6 +104,26 @@ export default function Settings() {
   }, [activeTab]);
 
   useEffect(() => {
+    if (activeTab !== 'notifications') return undefined;
+    let cancelled = false;
+    setEmailPreferencesLoading(true);
+    setEmailPreferencesError('');
+    backendApi.getEmailPreferences()
+      .then((data) => {
+        if (!cancelled) setEmailPreferences(data.preferences || {});
+      })
+      .catch((err) => {
+        if (!cancelled) setEmailPreferencesError(err.message || 'Unable to load email preferences.');
+      })
+      .finally(() => {
+        if (!cancelled) setEmailPreferencesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab]);
+
+  useEffect(() => {
     if (activeTab !== 'security') return;
     let cancelled = false;
     backendApi.getMfaStatus()
@@ -78,11 +135,23 @@ export default function Settings() {
   }, [activeTab]);
 
   const handleSave = async () => {
-    const updated = await backendApi.updateMe({ name, phone: user?.phone || '', company: user?.company || '', job_role: user?.job_role || '', security_focus: user?.security_focus || '', fav_programming_languages: user?.fav_programming_languages || [] });
-    updateUser(updated);
-    localStorage.setItem('cs-settings', JSON.stringify({ name: updated.name, email: updated.email, timezone }));
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setProfileError('');
+    try {
+      const updated = await backendApi.updateMe({
+        name: name.trim(),
+        phone: phone.trim(),
+        company: company.trim(),
+        job_role: jobRole.trim(),
+        security_focus: securityFocus.trim(),
+        fav_programming_languages: profile?.fav_programming_languages || [],
+      });
+      setProfile(updated);
+      updateUser(updated);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      setProfileError(err.message || 'Unable to save your profile.');
+    }
   };
 
   const handleChangePassword = async () => {
@@ -95,6 +164,19 @@ export default function Settings() {
     setNewPassword('');
     setConfirmPassword('');
     setConnectionError('Password changed successfully.');
+  };
+
+  const handleEmailPreferenceChange = async (key, value) => {
+    const nextPreferences = { ...emailPreferences, [key]: value };
+    setEmailPreferences(nextPreferences);
+    setEmailPreferencesError('');
+    try {
+      const response = await backendApi.updateEmailPreferences({ [key]: value });
+      setEmailPreferences(response.preferences || nextPreferences);
+    } catch (err) {
+      setEmailPreferences(emailPreferences);
+      setEmailPreferencesError(err.message || 'Unable to update email preferences.');
+    }
   };
 
   const handleConnectGithub = async () => {
@@ -211,33 +293,41 @@ export default function Settings() {
           {activeTab === 'profile' && (
             <div className="settings-section animate-fade-up">
               <h3 className="settings-section-title">Profile Information</h3>
-              <div className="settings-form">
+              {profileLoading ? <div className="settings-empty">Loading your profile...</div> : <div className="settings-form">
+                {profileError && <div className="login-error" role="alert">{profileError}</div>}
                 <div className="form-group">
                   <label className="form-label">Full Name</label>
                   <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Email</label>
-                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                  <input type="email" value={profile?.email || ''} readOnly className="readonly" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Role</label>
-                  <input type="text" value={user?.role || 'Admin'} readOnly className="readonly" />
+                  <input type="text" value={profile?.role || ''} readOnly className="readonly" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Subscription Plan</label>
-                  <input type="text" value={(user?.subscription_tier || 'free').toUpperCase()} readOnly className="readonly" />
+                  <input type="text" value={(profile?.subscription_tier || '').toUpperCase()} readOnly className="readonly" />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Timezone</label>
-                  <select value={timezone} onChange={(e) => setTimezone(e.target.value)}>
-                    <option>UTC</option>
-                    <option>EST</option>
-                    <option>PST</option>
-                    <option>CET</option>
-                  </select>
+                  <label className="form-label">Phone</label>
+                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
                 </div>
-              </div>
+                <div className="form-group">
+                  <label className="form-label">Company</label>
+                  <input type="text" value={company} onChange={(e) => setCompany(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Job Role</label>
+                  <input type="text" value={jobRole} onChange={(e) => setJobRole(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Security Focus</label>
+                  <input type="text" value={securityFocus} onChange={(e) => setSecurityFocus(e.target.value)} />
+                </div>
+              </div>}
             </div>
           )}
 
@@ -316,10 +406,6 @@ export default function Settings() {
                     <div className="toggle-label">Session Timeout</div>
                     <div className="toggle-desc">Auto-logout after 30 minutes of inactivity</div>
                   </div>
-                  <label className="toggle-switch">
-                    <input type="checkbox" defaultChecked />
-                    <span className="toggle-slider" />
-                  </label>
                 </div>
               </div>
             </div>
@@ -403,20 +489,21 @@ export default function Settings() {
           {activeTab === 'notifications' && (
             <div className="settings-section animate-fade-up">
               <h3 className="settings-section-title">Notification Preferences</h3>
-              <div className="settings-form">
-                {[ 'Critical vulnerabilities', 'Scan completions', 'Weekly summary reports', 'Team activity', 'System updates'
-                ].map(item => (
-                  <div key={item} className="settings-toggle-row">
+              <p className="settings-section-subtitle">Choose which account emails VulNexus may send to your signed-in email address.</p>
+              {emailPreferencesLoading ? <div className="settings-empty">Loading email preferences...</div> : <div className="settings-form">
+                {notificationOptions.map(({ key, label, defaultValue }) => (
+                  <div key={key} className="settings-toggle-row">
                     <div>
-                      <div className="toggle-label">{item}</div>
+                      <div className="toggle-label">{label}</div>
                     </div>
                     <label className="toggle-switch">
-                      <input type="checkbox" defaultChecked />
+                      <input type="checkbox" checked={emailPreferences[key] ?? defaultValue} onChange={(event) => handleEmailPreferenceChange(key, event.target.checked)} />
                       <span className="toggle-slider" />
                     </label>
                   </div>
                 ))}
-              </div>
+                {emailPreferencesError && <div className="login-error" role="alert">{emailPreferencesError}</div>}
+              </div>}
             </div>
           )}
 
@@ -437,12 +524,8 @@ export default function Settings() {
                 <div className="settings-toggle-row">
                   <div>
                     <div className="toggle-label">Animations</div>
-                    <div className="toggle-desc">Enable UI animations and transitions</div>
+                    <div className="toggle-desc">Animations follow the application accessibility settings.</div>
                   </div>
-                  <label className="toggle-switch">
-                    <input type="checkbox" defaultChecked />
-                    <span className="toggle-slider" />
-                  </label>
                 </div>
               </div>
             </div>
@@ -452,20 +535,7 @@ export default function Settings() {
             <div className="settings-section animate-fade-up">
               <h3 className="settings-section-title">Provider Access</h3>
               <p className="settings-section-subtitle">Use this area for external intelligence providers such as NVD, MITRE, CISA, VirusTotal, Shodan, and SecurityTrails.</p>
-              <div className="api-key-card">
-                <div className="api-key-info">
-                  <span className="api-key-label">Production API Key</span>
-                  <code className="api-key-value">cs_prod_****************************a7f3</code>
-                </div>
-                <button className="btn btn-secondary btn-sm">Regenerate</button>
-              </div>
-              <div className="api-key-card">
-                <div className="api-key-info">
-                  <span className="api-key-label">Development API Key</span>
-                  <code className="api-key-value">cs_dev_*****************************b2e1</code>
-                </div>
-                <button className="btn btn-secondary btn-sm">Regenerate</button>
-              </div>
+              <div className="settings-empty">Provider credentials are platform-managed and are never displayed in a user profile.</div>
             </div>
           )}
         </div>

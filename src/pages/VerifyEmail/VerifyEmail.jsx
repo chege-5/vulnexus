@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Loader, Mail, ShieldCheck } from 'lucide-react';
 import { backendApi } from '../../api/backendApi';
@@ -6,20 +6,42 @@ import { useAuth } from '../../context/AuthContext';
 import logo from '../../assets/logo.png';
 import '../Login/Login.css';
 import '../ForgotPassword/ForgotPassword.css';
+import './VerifyEmail.css';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function VerifyEmail() {
   const navigate = useNavigate();
-  const { completeSession } = useAuth();
+  const { completeSession, signOut } = useAuth();
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState(searchParams.get('email') || '');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [secondsRemaining, setSecondsRemaining] = useState(30);
+  const [showSkipPrompt, setShowSkipPrompt] = useState(false);
 
   const emailFromLink = Boolean(searchParams.get('email'));
   const emailInvalid = email.length > 0 && !emailPattern.test(email);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setSecondsRemaining((current) => {
+        if (current <= 1) {
+          window.clearInterval(timer);
+          setShowSkipPrompt(true);
+          return 0;
+        }
+        return current - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const handleSkipForNow = async () => {
+    await signOut();
+    navigate('/login', { replace: true, state: { message: 'Verification is required before dashboard access. Sign in and enter your code when you are ready.' } });
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -60,6 +82,7 @@ export default function VerifyEmail() {
           <div className="auth-flow-steps single" aria-label="Account activation"><span className="active">✓</span><i /><span>Dashboard</span></div>
           <h2 id="verify-email-title" className="login-form-title">Verify your email</h2>
           <p className="login-form-subtitle">Enter the six-digit code we sent to securely activate your VulNexus workspace.</p>
+          <p className="field-hint" aria-live="polite">Need more time? You can defer verification in {secondsRemaining}s.</p>
 
           {error && <div className="login-error" role="alert">{error}</div>}
 
@@ -90,6 +113,18 @@ export default function VerifyEmail() {
           <Link to="/login" className="reset-back-link"><ArrowLeft size={14} /> Back to sign in</Link>
         </form>
       </section>
+      {showSkipPrompt && (
+        <div className="verification-skip-backdrop" role="presentation">
+          <section className="verification-skip-dialog" role="dialog" aria-modal="true" aria-labelledby="skip-verification-title">
+            <h2 id="skip-verification-title">Still waiting for your code?</h2>
+            <p>You can skip for now, but email verification is compulsory before dashboard access.</p>
+            <div className="verification-skip-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowSkipPrompt(false)}>Keep waiting</button>
+              <button type="button" className="btn btn-primary" onClick={handleSkipForNow}>Skip for now</button>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

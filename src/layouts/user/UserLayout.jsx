@@ -11,6 +11,14 @@ export default function UserLayout() {
   return (
     <div className={`app-layout${sidebarOpen ? ' sidebar-open' : ''}`}>
       <UserSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      {sidebarOpen && (
+        <button
+          className="sidebar-backdrop"
+          type="button"
+          aria-label="Close navigation"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
       <div className={`app-main${sidebarOpen ? ' sidebar-open' : ''}`}>
         <UserHeader

@@ -36,3 +36,38 @@
 .admin-link { color: #a9d8ff; font-weight: 750; }.admin-link:hover { text-decoration: underline; }
 @media (max-width: 1040px) { .admin-kpis { grid-template-columns: repeat(2, 1fr); }.admin-grid-2 { grid-template-columns: 1fr; } }
 @media (max-width: 680px) { .admin-page-hero { align-items: start; flex-direction: column; padding: 20px; }.admin-kpis { grid-template-columns: 1fr 1fr; }.admin-kpis article { padding: 15px; }.admin-kpis strong { font-size: 1.6rem; }.admin-trend { overflow-x: auto; grid-template-columns: repeat(7, 82px); justify-content: start; }.admin-audit-list article { flex-direction: column; }.admin-audit-list code { max-width: 100%; }.admin-pagination { align-items: start; flex-direction: column; } }
+
+@media (max-width: 480px) {
+  .admin-page-hero,
+  .admin-card {
+    padding: 16px;
+  }
+
+  .admin-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-kpis strong {
+    font-size: 1.8rem;
+  }
+
+  .admin-table-toolbar,
+  .admin-pagination {
+    align-items: stretch;
+  }
+
+  .admin-table-toolbar > span {
+    margin-left: 0;
+  }
+
+  .admin-filter-select,
+  .admin-table-toolbar .btn,
+  .admin-search {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-stat-list {
+    grid-template-columns: 1fr;
+  }
+}

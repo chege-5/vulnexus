@@ -214,6 +214,22 @@
   color: var(--text-muted) !important;
 }
 
+@media (max-width: 640px) {
+  .vuln-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .vuln-filters {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .vuln-search,
+  .vuln-filters > * {
+    width: 100%;
+  }
+}
+
 @media (max-width: 768px) {
   .vuln-summary {
     flex-direction: column;

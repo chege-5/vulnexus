@@ -1,0 +1,130 @@
+/*
+  Full light-mode compatibility layer.
+  Feature pages were originally authored dark-first with many literal dark
+  surfaces. This final stylesheet deliberately wins over those literals so a
+  selected light theme is coherent across public, auth, user, and admin routes.
+*/
+
+[data-theme='light'] {
+  background: var(--bg-primary);
+}
+
+[data-theme='light'] body,
+[data-theme='light'] #root,
+[data-theme='light'] .app-layout,
+[data-theme='light'] .app-main,
+[data-theme='light'] .app-content,
+[data-theme='light'] .admin-shell,
+[data-theme='light'] .auth-layout,
+[data-theme='light'] .auth-flow-page,
+[data-theme='light'] .landing-page,
+[data-theme='light'] .marketing-page {
+  color: var(--text-primary) !important;
+  background-color: var(--bg-primary) !important;
+}
+
+/* Every major content surface, including lazy-loaded feature pages. */
+[data-theme='light'] :where(
+  .card,
+  [class*='-card'],
+  [class*='-panel'],
+  [class*='-section'],
+  [class*='-drawer'],
+  [class*='-modal'],
+  [class*='-dialog'],
+  [class*='-table'],
+  [class*='-list'],
+  [class*='-details'],
+  [class*='-summary'],
+  [class*='-sidebar-note'],
+  [class*='-empty-state'],
+  [class*='-command'],
+  [class*='-workspace'],
+  [class*='-activity'],
+  [class*='-result'],
+  [class*='-report']
+) {
+  color: var(--text-primary) !important;
+  background: var(--surface-gradient) !important;
+  border-color: var(--border-primary) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+/* Shell surfaces need their own treatment because they are fixed layers. */
+[data-theme='light'] :where(.header, .footer, .sidebar, .admin-sidebar, .admin-header) {
+  color: var(--text-primary) !important;
+  background: color-mix(in srgb, var(--bg-secondary) 94%, transparent) !important;
+  border-color: var(--border-primary) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+[data-theme='light'] :where(.header-glow, .footer::before, .app-layout::before, body::before) {
+  opacity: 0.34 !important;
+}
+
+[data-theme='light'] :where(
+  h1, h2, h3, h4, h5, h6,
+  .page-title, .section-title, .card-title,
+  .settings-section-title, .toggle-label,
+  .auth-card-heading h2, .login-form-title
+) {
+  color: var(--text-primary) !important;
+}
+
+[data-theme='light'] :where(
+  p, small, label,
+  .page-desc, .settings-section-subtitle, .toggle-desc,
+  .auth-card-heading p, .login-form-subtitle,
+  .footer-copy, .footer-updated
+) {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme='light'] :where(input, textarea, select, .readonly) {
+  color: var(--text-primary) !important;
+  background: var(--bg-input) !important;
+  border-color: var(--border-primary) !important;
+}
+
+[data-theme='light'] :where(
+  .header-nav-dropdown, .notif-dropdown, .profile-dropdown,
+  .admin-profile-menu, .api-key-card, .mfa-settings-card,
+  .connected-account-card, .onboarding-modal, .verification-skip-dialog
+) {
+  color: var(--text-primary) !important;
+  background: var(--surface-gradient) !important;
+  border-color: var(--border-primary) !important;
+}
+
+[data-theme='light'] :where(
+  .settings-nav-item, .sidebar-item, .header-nav-btn,
+  .profile-dropdown-item, .footer-link, .admin-nav-link
+) {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme='light'] :where(
+  .settings-nav-item:hover, .settings-nav-item.active,
+  .sidebar-item:hover, .sidebar-item.active,
+  .header-nav-btn:hover, .header-nav-btn.active,
+  .profile-dropdown-item:hover, .footer-link:hover, .admin-nav-link:hover, .admin-nav-link.active
+) {
+  color: var(--text-primary) !important;
+  background-color: var(--bg-hover-brand) !important;
+}
+
+/* Preserve semantic status colors, but give them a pale, readable surface. */
+[data-theme='light'] :where(
+  .badge, [class*='badge-'], [class*='severity-'],
+  [class*='status-'], [class*='risk-'], [class*='sla-'],
+  .meta-chip, .filter-button
+) {
+  background-color: color-mix(in srgb, currentColor 10%, var(--bg-secondary)) !important;
+  border-color: color-mix(in srgb, currentColor 25%, var(--border-primary)) !important;
+}
+
+[data-theme='light'] :where(.recharts-default-tooltip, .recharts-tooltip-wrapper > div) {
+  color: var(--text-primary) !important;
+  background: var(--bg-secondary) !important;
+  border-color: var(--border-primary) !important;
+}

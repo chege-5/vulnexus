@@ -247,6 +247,17 @@ export const backendApi = {
     });
   },
 
+  getEmailPreferences() {
+    return request('/auth/email-preferences');
+  },
+
+  updateEmailPreferences(preferences) {
+    return request('/auth/email-preferences', {
+      method: 'PATCH',
+      body: JSON.stringify({ preferences }),
+    });
+  },
+
   changePassword(currentPassword, newPassword) {
     return request('/auth/change-password', {
       method: 'POST',
