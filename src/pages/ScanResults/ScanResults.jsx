@@ -52,7 +52,7 @@ export default function ScanResults() {
         const status = await backendApi.getAIReviewStatus(scanId);
         if (cancelled) return;
         setAiReview(status);
-        if (!['completed', 'failed'].includes(status.ai_review_status)) {
+        if (!['completed', 'completed_ai', 'completed_fallback', 'not_required', 'partial', 'timed_out', 'failed'].includes(status.ai_review_status)) {
           timer = window.setTimeout(poll, 2500);
         }
       } catch {
@@ -91,6 +91,9 @@ export default function ScanResults() {
   const aiReviewError = typeof (aiReview?.ai_review_error || scan.aiReviewError) === 'string'
     ? (aiReview?.ai_review_error || scan.aiReviewError)
     : 'The assisted review could not be completed.';
+  const aiReviewPending = ['pending', 'processing'].includes(aiReviewStatus);
+  const aiReviewReady = ['completed', 'completed_ai', 'completed_fallback', 'partial', 'timed_out'].includes(aiReviewStatus) && aiReviewData;
+  const reportStatus = scan.enhancedReportReady ? 'AI-enriched report ready' : 'Deterministic report ready';
 
   const findingsData = [
     { name: 'Critical', count: scan.findings.critical, fill: '#EF4444' },
@@ -142,7 +145,7 @@ export default function ScanResults() {
         <div className="command-metric"><span>Critical</span><strong>{severityCounts.critical}</strong></div>
         <div className="command-metric"><span>High</span><strong>{severityCounts.high}</strong></div>
         <div className="command-metric"><span>Total Findings</span><strong>{severityCounts.total}</strong></div>
-        <div className="command-metric"><span>Report Status</span><strong>Available</strong></div>
+        <div className="command-metric"><span>Report Status</span><strong>{reportStatus}</strong></div>
         <div className="command-metric"><span>SLA Risk</span><strong>{prioritySla.label}</strong></div>
         <div className="command-metric"><span>Compliance</span><strong>{priorityCompliance.mapped ? 'Mapped' : 'Partial'}</strong></div>
       </section>
@@ -298,7 +301,7 @@ export default function ScanResults() {
         </aside>
       </div>
       <section className="ai-review-panel animate-fade-up stagger-6" aria-live="polite">
-        {['pending', 'processing'].includes(aiReviewStatus) && (
+        {aiReviewPending && (
           <>
             <div className="ai-review-spinner"><Loader size={20} className="spin" /></div>
             <div>
@@ -315,11 +318,18 @@ export default function ScanResults() {
             <p>{aiReviewError}</p>
           </div>
         )}
-        {aiReviewStatus === 'completed' && aiReviewData && (
+        {aiReviewStatus === 'not_required' && (
+          <div>
+            <span className="page-kicker">AI review not required</span>
+            <h3>No findings were available for review.</h3>
+            <p>The completed scan remains available with its deterministic report.</p>
+          </div>
+        )}
+        {aiReviewReady && (
           <div className="ai-review-ready">
             <div>
-              <span className="page-kicker">AI review complete</span>
-              <h3>Explanation and remediation guidance</h3>
+              <span className="page-kicker">{aiReviewStatus === 'completed_ai' || aiReviewStatus === 'completed' ? 'AI-assisted review completed' : 'Deterministic fallback completed'}</span>
+              <h3>{aiReviewStatus === 'completed_ai' || aiReviewStatus === 'completed' ? 'Explanation and remediation guidance' : 'Evidence-based remediation guidance'}</h3>
               <p>{reviewSummary}</p>
             </div>
             <div className="ai-review-guidance">

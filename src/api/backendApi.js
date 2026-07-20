@@ -121,25 +121,30 @@ export const backendApi = {
     return { token: refreshedToken, user: authStorage.getUser() };
   },
 
-  async getOAuthStartUrl(provider, flow = 'login', redirectUri = '') {
-    const params = new URLSearchParams({ flow });
-    if (redirectUri) params.set('redirect_uri', redirectUri);
-    const data = await request(`/auth/${provider}/start?${params.toString()}`, {
-      method: 'GET',
-    });
-    return data.authorization_url;
+  getOAuthLoginUrl(provider, flow = 'login') {
+    if (!['google', 'github'].includes(provider)) {
+      throw new Error('Unsupported OAuth provider');
+    }
+    return `${API_BASE_URL}/auth/${provider}/login?${new URLSearchParams({ flow }).toString()}`;
   },
 
   logout() {
     return request('/auth/logout', { method: 'POST', skipRefresh: true });
   },
 
-  async exchangeOAuthCode(provider, code, redirectUri, state) {
-    const data = await request(`/auth/${provider}/exchange`, {
-      method: 'POST',
-      body: JSON.stringify({ code, state, redirect_uri: redirectUri }),
-    });
-    return { token: data.access_token, refreshToken: data.refresh_token, user: data.user };
+  async completeOAuthSession() {
+    // The Railway callback has already exchanged the provider code and set the
+    // HttpOnly session cookie.  This is deliberately the only callback request.
+    const response = await fetchFromConfiguredApi('/auth/me', { credentials: 'include' });
+    if (!response.ok) {
+      throw new ApiError('Your sign-in session is unavailable. Please start again.', response.status);
+    }
+    const token = response.headers.get('X-Access-Token');
+    if (!token) {
+      throw new ApiError('Your sign-in session could not be completed. Please start again.', 401);
+    }
+    const user = await response.json();
+    return { token, user };
   },
 
   async login(email, password) {

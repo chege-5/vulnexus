@@ -80,9 +80,9 @@ export default function NewScan() {
   const canLaunch = isFileMode ? !!uploadFile : isGitHubMode ? !!githubConnection?.connected && !!selectedOrg && !!selectedRepo && !!selectedBranch : targets.length > 0;
   const reviewTarget = isFileMode ? uploadFile?.name : isGitHubMode ? `${selectedOrg || 'Organization'}/${selectedRepo || 'Repository'}${selectedFolder ? `/${selectedFolder}` : ''}` : targets[0];
   const estimatedCoverage = isFileMode
-    ? 'Secrets, dependencies, compliance, AI risk'
+    ? 'Syntax-aware SAST, secret exposure, dependencies, compliance, AI risk'
     : isGitHubMode
-      ? 'Repository, branch, dependencies, secrets, compliance'
+      ? 'Repository SAST, branch, dependencies, secret exposure, compliance'
       : 'DNS, TLS, headers, crawler, reputation, compliance';
   const broadScope = isGitHubMode && !selectedFolder;
   const launchLogs = useMemo(() => {

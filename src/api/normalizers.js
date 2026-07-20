@@ -220,7 +220,7 @@ export function normalizeVulnerability(v) {
     severity: normalizeSeverity(v.severity),
     target: v.target || '',
     endpoint: v.file_path
-      ? (v.line_number ? `${v.file_path}:${v.line_number}` : v.file_path)
+      ? (v.line_number ? `${v.file_path}:${v.line_number}${v.column_number ? `:${v.column_number}` : ''}` : v.file_path)
       : (v.target || ''),
     cve: v.cve === 'N/A' ? 'Not Applicable' : (v.cve || v.cve_id || 'Not Applicable'),
     cvss,
@@ -246,6 +246,11 @@ export function normalizeVulnerability(v) {
     scanId: v.scan_id || '',
     knownExploit: !!v.known_exploit,
     references: presentation.references,
+    ruleId: v.rule_id || '',
+    category: v.category || v.evidence?.category || '',
+    columnNumber: v.column_number || v.evidence?.column_number || null,
+    codeSnippet: v.code_snippet || v.evidence?.line_preview || '',
+    evidence: v.evidence || {},
   };
 }
 
@@ -257,7 +262,9 @@ export function normalizeVulnerabilityDetail(v) {
     impact: base.impact || v.impact || '',
     affectedVersions: v.affected_versions || 'Not Applicable',
     references: base.references?.length ? base.references : (v.references || []),
-    evidence: v.evidence || v.description || '',
+    evidence: typeof v.evidence === 'string'
+      ? v.evidence
+      : JSON.stringify(v.evidence || (v.code_snippet ? { line_preview: v.code_snippet } : {}), null, 2) || v.description || '',
     timeline: v.timeline || [],
     comments: v.comments || [],
     history: v.history || [],
@@ -406,6 +413,7 @@ export function normalizeScanResult(result) {
     aiReviewError: result.ai_review_error || null,
     aiReview: result.metadata?.ai_review || null,
     enhancedReportReady: result.metadata?.enhanced_report?.status === 'ready',
+    reportStatus: result.metadata?.enhanced_report?.status === 'ready' ? 'ready_ai_enriched' : 'ready_deterministic',
     duration: formatDuration(result.started_at, result.finished_at),
     riskScore,
     riskLabel,

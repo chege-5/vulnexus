@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Loader, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { backendApi } from '../../api/backendApi';
 import { getPostLoginPath } from '../../utils/authRoles';
-import { getOAuthRedirectUri, isSupportedOAuthProvider } from '../../utils/oauth';
 import './AuthCallback.css';
-
-const oauthCallbackOrigin = import.meta.env.VITE_OAUTH_CALLBACK_ORIGIN || '';
 
 function getOAuthErrorMessage(provider, errorText = '') {
   const label = provider ? `${provider[0].toUpperCase()}${provider.slice(1)}` : 'OAuth';
@@ -21,7 +19,7 @@ function getOAuthErrorMessage(provider, errorText = '') {
   if (lower.includes('denied') || lower.includes('access_denied')) {
     return `${label} sign-in was cancelled.`;
   }
-  if (lower.includes('state') || lower.includes('authorization code') || lower.includes('oauth code')) {
+  if (lower.includes('state') || lower.includes('expired')) {
     return `${label} sign-in expired. Please start again.`;
   }
 
@@ -29,42 +27,40 @@ function getOAuthErrorMessage(provider, errorText = '') {
 }
 
 export default function AuthCallback() {
-  const { provider } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { completeOAuthCallback } = useAuth();
+  const { completeSession } = useAuth();
   const [error, setError] = useState('');
   const [status, setStatus] = useState('Exchanging secure authorization...');
   const [authenticated, setAuthenticated] = useState(false);
   const callbackExchangeRef = useRef(null);
   const redirectTimerRef = useRef(null);
-  const code = searchParams.get('code');
-  const state = searchParams.get('state');
-  const oauthError = searchParams.get('error_description') || searchParams.get('error');
-  const missingCallbackParams = !isSupportedOAuthProvider(provider) || !code || !state;
+  const provider = searchParams.get('provider');
+  const outcome = searchParams.get('oauth');
+  const oauthError = searchParams.get('reason');
+  const invalidCallback = !['google', 'github'].includes(provider) || outcome !== 'success';
 
   useEffect(() => {
-    if (oauthError || missingCallbackParams) {
+    if (invalidCallback || authenticated) {
       return;
     }
 
     let cancelled = false;
-    const redirectUri = getOAuthRedirectUri(provider, oauthCallbackOrigin, window.location.origin);
-    const callbackKey = `${provider}:${code}:${state}`;
+    const callbackKey = `${provider}:${outcome}`;
 
-    // OAuth authorization codes are one-time use. In StrictMode, the first
-    // effect cleanup runs before the request resolves; the second effect joins
-    // the same promise instead of sending a second code-exchange request.
+    // The backend has already consumed the one-time provider code. In
+    // StrictMode, join this single /auth/me session completion request.
     if (callbackExchangeRef.current?.key !== callbackKey) {
       callbackExchangeRef.current = {
         key: callbackKey,
-        promise: completeOAuthCallback(provider, code, redirectUri, state),
+        promise: backendApi.completeOAuthSession(),
       };
     }
 
     callbackExchangeRef.current.promise
       .then((session) => {
         if (cancelled) return;
+        completeSession(session);
         setAuthenticated(true);
         setStatus(`${provider[0].toUpperCase()}${provider.slice(1)} account connected. Redirecting to your workspace...`);
         redirectTimerRef.current = window.setTimeout(() => {
@@ -83,11 +79,11 @@ export default function AuthCallback() {
         redirectTimerRef.current = null;
       }
     };
-  }, [provider, code, state, oauthError, missingCallbackParams, completeOAuthCallback, navigate]);
+  }, [provider, outcome, invalidCallback, authenticated, completeSession, navigate]);
 
-  const visibleError = oauthError
-    ? getOAuthErrorMessage(provider, oauthError)
-    : (missingCallbackParams ? 'The sign-in response is missing required information. Please start again.' : error);
+  const visibleError = invalidCallback
+    ? getOAuthErrorMessage(provider, oauthError || 'invalid callback')
+    : error;
 
   return (
     <div className="auth-callback-page">

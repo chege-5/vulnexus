@@ -196,7 +196,7 @@ export default function App() {
           }
         />
         <Route
-          path="/auth/:provider/callback"
+          path="/auth/callback"
           element={
             <Suspense fallback={<SkeletonPage />}>
               <AuthCallback />

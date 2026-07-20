@@ -1,10 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { authStorage, backendApi } from '../api/backendApi';
-import { getOAuthRedirectUri } from '../utils/oauth';
 
 const AuthContext = createContext();
-const oauthCallbackOrigin = import.meta.env.VITE_OAUTH_CALLBACK_ORIGIN || '';
-
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => authStorage.getUser());
   const [token, setToken] = useState(() => authStorage.getToken());
@@ -47,15 +44,8 @@ export function AuthProvider({ children }) {
     return completeSession(session, options);
   };
 
-  const beginOAuth = async (provider, flow = 'login') => {
-    const redirectUri = getOAuthRedirectUri(provider, oauthCallbackOrigin, window.location.origin);
-    const authorizationUrl = await backendApi.getOAuthStartUrl(provider, flow, redirectUri);
-    window.location.assign(authorizationUrl);
-  };
-
-  const completeOAuthCallback = async (provider, code, redirectUri, state) => {
-    const session = await backendApi.exchangeOAuthCode(provider, code, redirectUri, state);
-    return completeSession(session);
+  const beginOAuth = (provider, flow = 'login') => {
+    window.location.assign(backendApi.getOAuthLoginUrl(provider, flow));
   };
 
   const signOut = async () => {
@@ -78,7 +68,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, signIn, verifyMfaLogin, signUp, signOut, updateUser, beginOAuth, completeOAuthCallback, completeSession, isAuthenticated: !!user, loading }}>
+    <AuthContext.Provider value={{ user, token, signIn, verifyMfaLogin, signUp, signOut, updateUser, beginOAuth, completeSession, isAuthenticated: !!user, loading }}>
       {!loading && children}
     </AuthContext.Provider>
   );
