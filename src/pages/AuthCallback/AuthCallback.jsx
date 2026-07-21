@@ -35,6 +35,7 @@ export default function AuthCallback() {
   const [authenticated, setAuthenticated] = useState(false);
   const callbackExchangeRef = useRef(null);
   const redirectTimerRef = useRef(null);
+  const sessionCompletedRef = useRef(false);
   const provider = searchParams.get('provider');
   const outcome = searchParams.get('oauth');
   const oauthError = searchParams.get('reason');
@@ -61,6 +62,10 @@ export default function AuthCallback() {
       .then((session) => {
         if (cancelled) return;
         completeSession(session);
+        // `completeSession` updates the auth context, which reruns this
+        // effect. Keep the timer alive through that rerender so the success
+        // screen can actually hand off to the dashboard.
+        sessionCompletedRef.current = true;
         setAuthenticated(true);
         setStatus(`${provider[0].toUpperCase()}${provider.slice(1)} account connected. Redirecting to your workspace...`);
         redirectTimerRef.current = window.setTimeout(() => {
@@ -73,6 +78,10 @@ export default function AuthCallback() {
       });
 
     return () => {
+      // The post-login auth-context update reruns this effect immediately.
+      // That cleanup is not an abandoned callback: cancelling here used to
+      // clear the only dashboard redirect and leave users stuck on this page.
+      if (sessionCompletedRef.current) return;
       cancelled = true;
       if (redirectTimerRef.current) {
         window.clearTimeout(redirectTimerRef.current);
